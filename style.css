@@ -1,0 +1,67 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body{
+    font-family: 'Patrick Hand', cursive;
+    background: #fef6e4;
+      background-image: radial-gradient(#f3d2c1 1px, transparent 1px);
+    background-size: 20px 20px;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+}
+
+#welcome-screen{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.welcome-card{
+    background: #ffffff;
+    border: 3px solid #2d2d2d;
+    border-radius: 20px;
+    padding: 40px 50px;
+    max-width:480px;
+    text-align: center;
+    box-shadow: 8px 8px 0px #2d2d2d;
+
+}
+.welcome-card h1{
+     font-family: 'Baloo 2', cursive;
+    font-size: 2rem;
+    color: #2d2d2d;
+    margin-bottom: 16px;
+}
+.welcome-card p{
+    font-size: 1.2rem;
+    color: #2d2d2d;
+    margin-bottom: 12px;
+    line-height:1.5;
+}
+#enter-btn{
+    margin-top: 20px;
+    font-family: 'Baloo 2', cursive;
+  font-size: 1.1rem;
+  background: #8bd3dd;
+  border: 3px solid #2d2d2d;
+  border-radius: 12px;
+  padding: 12px 28px;
+  cursor: pointer;
+  box-shadow: 4px 4px 0px #2d2d2d;
+  transition: transform 0.1s ease;
+}
+#enter-btn:hover{
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #2d2d2d;
+}
+#enter-btn:active{
+    transform: translate(2px, 2px);
+    box-shadow: 0px 0px 0px #2d2d2d;
+}
