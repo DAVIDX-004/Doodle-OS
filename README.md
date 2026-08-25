@@ -25,7 +25,7 @@
 ---
 ## 🚀 Live Demo
 
-🎯 **[Try Doodle OS Live](https://DAVIDX-004.github.io/doodle-os)**
+🎯 **[Try Doodle OS Live](https://DAVIDX-004.github.io/Doodle-OS)**
 
 Or run it locally:
 
