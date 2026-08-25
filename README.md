@@ -23,16 +23,15 @@
 | ⏻ **Shutdown** | A cute shutdown screen to end your session |
 
 ---
-
 ## 🚀 Live Demo
 
-🎯 **[Try Doodle OS Live](https://DAVIDX-004.github.io/MY-OS)**
+🎯 **[Try Doodle OS Live](https://DAVIDX-004.github.io/doodle-os)**
 
 Or run it locally:
 
 ```bash
-git clone https://github.com/DAVIDX-004/MY-OS.git
-cd MY-OS
+git clone https://github.com/DAVIDX-004/doodle-os.git
+cd doodle-os
 # Open index.html in your browser
 ```
 
