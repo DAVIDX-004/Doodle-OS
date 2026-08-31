@@ -138,9 +138,7 @@ Doodle-OS/
 - [x] Calendar widget
 - [x] Wallpaper picker (5 patterns)
 - [x] Sound effects
-- [ ] 🎵 Background music
-- [ ] 🎮 More mini games (Tic-Tac-Toe, Pong)
-- [ ] 🔐 Multiple user profiles
+
 
 ---
 
