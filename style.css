@@ -1,5 +1,3 @@
-
-
 * {
     margin: 0;
     padding: 0;
@@ -9,11 +7,94 @@
 body {
     font-family: 'Patrick Hand', cursive;
     background: #fef6e4;
-    background-image: radial-gradient(#f3d2c1 1px, transparent 1px);
-    background-size: 20px 20px;
     height: 100vh;
     overflow: hidden;
     user-select: none;
+}
+
+/* ========== LOGIN SCREEN ========== */
+#login-screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    background: #fef6e4;
+    background-image: radial-gradient(#f3d2c1 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.login-card {
+    background: #ffffff;
+    border: 3px solid #2d2d2d;
+    border-radius: 20px;
+    padding: 40px 50px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 8px 8px 0px #2d2d2d;
+    animation: popIn 0.4s ease;
+}
+
+.login-avatar {
+    font-size: 4rem;
+    margin-bottom: 10px;
+}
+
+.login-card h2 {
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.8rem;
+    color: #2d2d2d;
+    margin-bottom: 8px;
+}
+
+.login-card p {
+    font-size: 1.1rem;
+    color: #555;
+    margin-bottom: 20px;
+}
+
+#login-password {
+    width: 100%;
+    font-family: 'Patrick Hand', cursive;
+    font-size: 1.2rem;
+    border: 3px solid #2d2d2d;
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    outline: none;
+    background: #fffef7;
+}
+
+#login-btn {
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.1rem;
+    background: #8bd3dd;
+    border: 3px solid #2d2d2d;
+    border-radius: 12px;
+    padding: 10px 32px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0px #2d2d2d;
+    transition: transform 0.1s;
+    width: 100%;
+}
+
+#login-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #2d2d2d;
+}
+
+.login-hint {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: #999;
+}
+
+#login-screen.fade-out {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
 }
 
 /* ========== WELCOME SCREEN ========== */
@@ -88,10 +169,39 @@ body {
     height: 100vh;
     position: relative;
     overflow: hidden;
+    background: #fef6e4;
+    background-image: radial-gradient(#f3d2c1 1px, transparent 1px);
+    background-size: 20px 20px;
 }
 
 #desktop.hidden {
     display: none;
+}
+
+/* Wallpaper patterns */
+#desktop[data-wallpaper="dots"] {
+    background-image: radial-gradient(#f3d2c1 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+#desktop[data-wallpaper="grid"] {
+    background-image: linear-gradient(#f3d2c1 1px, transparent 1px), linear-gradient(90deg, #f3d2c1 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+#desktop[data-wallpaper="lines"] {
+    background-image: repeating-linear-gradient(0deg, #f3d2c1 0px, transparent 1px, transparent 20px);
+    background-size: 20px 20px;
+}
+
+#desktop[data-wallpaper="crosses"] {
+    background-image: radial-gradient(circle, #f3d2c1 1px, transparent 2px);
+    background-size: 24px 24px;
+}
+
+#desktop[data-wallpaper="stars"] {
+    background-image: radial-gradient(#f9e79f 2px, transparent 2px);
+    background-size: 30px 30px;
 }
 
 /* Desktop Icons */
@@ -141,6 +251,13 @@ body {
     color: #2d2d2d;
     text-align: center;
     text-shadow: 1px 1px 0px #fff;
+}
+
+.desktop-icon.selected .icon-draw {
+    background: #fae1dd;
+    box-shadow: 2px 2px 0px #2d2d2d;
+    transform: translate(2px, 2px);
+    border-color: #8bd3dd;
 }
 
 /* ========== WINDOWS ========== */
@@ -218,7 +335,7 @@ body {
     color: #2d2d2d;
 }
 
-/* Notepad specific */
+/* Notepad */
 .notepad-textarea {
     width: 100%;
     height: 100%;
@@ -232,7 +349,45 @@ body {
     background: #fffef7;
 }
 
-/* Terminal specific */
+.np-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 2px solid #2d2d2d;
+    background: #fef6e4;
+    margin: -16px -16px 10px -16px;
+    align-items: center;
+}
+
+.np-btn {
+    font-family: 'Baloo 2', cursive;
+    font-size: 0.85rem;
+    background: #ffffff;
+    border: 2px solid #2d2d2d;
+    border-radius: 8px;
+    padding: 4px 12px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px #2d2d2d;
+    transition: transform 0.1s;
+}
+
+.np-btn:hover {
+    transform: translate(-1px, -1px);
+}
+
+.np-btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: 0px 0px 0px #2d2d2d;
+}
+
+.np-status {
+    margin-left: auto;
+    font-size: 0.9rem;
+    color: #666;
+    font-family: 'Baloo 2', cursive;
+}
+
+/* Terminal */
 .terminal-body {
     background: #2d2d2d;
     color: #abebc6;
@@ -262,6 +417,245 @@ body {
     font-size: 0.95rem;
     outline: none;
     flex: 1;
+}
+
+/* Calculator */
+.calc-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 12px;
+    gap: 12px;
+}
+
+.calc-display {
+    background: #fffef7;
+    border: 3px solid #2d2d2d;
+    border-radius: 12px;
+    padding: 16px;
+    font-family: 'Baloo 2', cursive;
+    font-size: 2rem;
+    text-align: right;
+    color: #2d2d2d;
+    box-shadow: 3px 3px 0px #2d2d2d;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    overflow: hidden;
+}
+
+.calc-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    flex: 1;
+}
+
+.calc-btn {
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.3rem;
+    background: #ffffff;
+    border: 3px solid #2d2d2d;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0px #2d2d2d;
+    transition: transform 0.08s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.calc-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0px #2d2d2d;
+}
+
+.calc-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0px 0px 0px #2d2d2d;
+}
+
+.calc-op { background: #fae1dd; }
+.calc-eq { background: #abebc6; grid-row: span 2; }
+.calc-clear { background: #f5b7b1; }
+.calc-del { background: #f9e79f; }
+.calc-zero { grid-column: span 2; }
+
+/* File Manager */
+.fm-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.fm-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 2px solid #2d2d2d;
+    background: #fef6e4;
+}
+
+.fm-btn {
+    font-family: 'Baloo 2', cursive;
+    font-size: 0.85rem;
+    background: #ffffff;
+    border: 2px solid #2d2d2d;
+    border-radius: 8px;
+    padding: 4px 12px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px #2d2d2d;
+}
+
+.fm-count {
+    margin-left: auto;
+    font-family: 'Baloo 2', cursive;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.fm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.fm-item {
+    background: #ffffff;
+    border: 3px solid #2d2d2d;
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    box-shadow: 3px 3px 0px #2d2d2d;
+    transition: transform 0.1s;
+}
+
+.fm-item:hover {
+    transform: translate(-2px, -2px);
+}
+
+.fm-icon {
+    font-size: 2rem;
+    margin-bottom: 6px;
+}
+
+.fm-name {
+    font-size: 0.85rem;
+    word-break: break-all;
+    margin-bottom: 8px;
+    color: #2d2d2d;
+}
+
+.fm-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+
+.fm-action-btn {
+    background: none;
+    border: 2px solid #2d2d2d;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 0.9rem;
+}
+
+/* Wallpaper options */
+.wp-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.wp-btn {
+    font-family: 'Baloo 2', cursive;
+    font-size: 0.8rem;
+    border: 2px solid #2d2d2d;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px #2d2d2d;
+    transition: transform 0.1s;
+}
+
+.wp-btn:hover {
+    transform: translate(-1px, -1px);
+}
+
+/* Calendar */
+#calendar-btn {
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.1rem;
+    cursor: pointer;
+    background: #fef6e4;
+    border: 2px solid #2d2d2d;
+    border-radius: 8px;
+    padding: 2px 8px;
+    margin-right: 8px;
+    transition: transform 0.1s;
+}
+
+#calendar-btn:hover {
+    transform: scale(1.1);
+}
+
+#calendar-popup {
+    position: fixed;
+    bottom: 58px;
+    right: 16px;
+    width: 280px;
+    background: #ffffff;
+    border: 3px solid #2d2d2d;
+    border-radius: 16px;
+    box-shadow: 6px 6px 0px #2d2d2d;
+    z-index: 1001;
+    overflow: hidden;
+    padding: 16px;
+}
+
+#calendar-popup.hidden {
+    display: none;
+}
+
+.cal-header {
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.2rem;
+    text-align: center;
+    margin-bottom: 12px;
+    color: #2d2d2d;
+}
+
+.cal-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+}
+
+.cal-day-name {
+    font-family: 'Baloo 2', cursive;
+    font-size: 0.8rem;
+    color: #999;
+    padding: 4px;
+}
+
+.cal-day {
+    padding: 6px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: default;
+}
+
+.cal-day.today {
+    background: #fae1dd;
+    border: 2px solid #2d2d2d;
+    font-weight: bold;
 }
 
 /* ========== TASKBAR ========== */
@@ -399,58 +793,25 @@ body {
     opacity: 0.3;
 }
 
-
-/* ========== DESKTOP ICON SELECTION ========== */
-.desktop-icon.selected .icon-draw {
-    background: #fae1dd;
-    box-shadow: 2px 2px 0px #2d2d2d;
-    transform: translate(2px, 2px);
-    border-color: #8bd3dd;
-}
-
-/* ========== NOTEPAD TOOLBAR ========== */
-.np-toolbar {
-    display: flex;
-    gap: 8px;
-    padding: 8px 16px;
-    border-bottom: 2px solid #2d2d2d;
-    background: #fef6e4;
-    margin: -16px -16px 10px -16px;
-    align-items: center;
-}
-
-.np-btn {
-    font-family: 'Baloo 2', cursive;
-    font-size: 0.85rem;
-    background: #ffffff;
-    border: 2px solid #2d2d2d;
-    border-radius: 8px;
-    padding: 4px 12px;
-    cursor: pointer;
-    box-shadow: 2px 2px 0px #2d2d2d;
-    transition: transform 0.1s;
-}
-
-.np-btn:hover {
-    transform: translate(-1px, -1px);
-}
-
-.np-btn:active {
-    transform: translate(1px, 1px);
-    box-shadow: 0px 0px 0px #2d2d2d;
-}
-
-.np-status {
-    margin-left: auto;
-    font-size: 0.9rem;
-    color: #666;
-    font-family: 'Baloo 2', cursive;
-}
-
 /* ========== DARK MODE ========== */
 #desktop[data-theme="dark"] {
     background: #1e1e2e;
+}
+
+#desktop[data-theme="dark"][data-wallpaper="dots"] {
     background-image: radial-gradient(#2d2d3d 1px, transparent 1px);
+}
+#desktop[data-theme="dark"][data-wallpaper="grid"] {
+    background-image: linear-gradient(#2d2d3d 1px, transparent 1px), linear-gradient(90deg, #2d2d3d 1px, transparent 1px);
+}
+#desktop[data-theme="dark"][data-wallpaper="lines"] {
+    background-image: repeating-linear-gradient(0deg, #2d2d3d 0px, transparent 1px, transparent 20px);
+}
+#desktop[data-theme="dark"][data-wallpaper="crosses"] {
+    background-image: radial-gradient(circle, #2d2d3d 1px, transparent 2px);
+}
+#desktop[data-theme="dark"][data-wallpaper="stars"] {
+    background-image: radial-gradient(#3d3d5c 2px, transparent 2px);
 }
 
 #desktop[data-theme="dark"] .desktop-icon span {
@@ -494,20 +855,46 @@ body {
     border-color: #555;
 }
 
-#desktop[data-theme="dark"] .np-toolbar {
+#desktop[data-theme="dark"] .np-toolbar,
+#desktop[data-theme="dark"] .fm-toolbar {
     background: #2d2d3d;
     border-color: #555;
 }
 
-#desktop[data-theme="dark"] .np-btn {
+#desktop[data-theme="dark"] .np-btn,
+#desktop[data-theme="dark"] .fm-btn {
     background: #3d3d5c;
     color: #e8e8e8;
     border-color: #555;
     box-shadow: 2px 2px 0px #111;
 }
 
-#desktop[data-theme="dark"] .np-status {
+#desktop[data-theme="dark"] .np-status,
+#desktop[data-theme="dark"] .fm-count {
     color: #aaa;
+}
+
+#desktop[data-theme="dark"] .calc-display {
+    background: #1e1e2e;
+    color: #e8e8e8;
+    border-color: #555;
+}
+
+#desktop[data-theme="dark"] .calc-btn {
+    background: #3d3d5c;
+    color: #e8e8e8;
+    border-color: #555;
+    box-shadow: 3px 3px 0px #111;
+}
+
+#desktop[data-theme="dark"] .fm-item {
+    background: #2d2d3d;
+    border-color: #555;
+    box-shadow: 3px 3px 0px #111;
+}
+
+#desktop[data-theme="dark"] .fm-name {
+    color: #e8e8e8;
 }
 
 #desktop[data-theme="dark"] #taskbar {
@@ -515,7 +902,8 @@ body {
     border-color: #555;
 }
 
-#desktop[data-theme="dark"] #clock {
+#desktop[data-theme="dark"] #clock,
+#desktop[data-theme="dark"] #calendar-btn {
     background: #1e1e2e;
     color: #e8e8e8;
     border-color: #555;
@@ -533,23 +921,27 @@ body {
     color: #2d2d2d;
 }
 
-#desktop[data-theme="dark"] #start-menu {
+#desktop[data-theme="dark"] #start-menu,
+#desktop[data-theme="dark"] #calendar-popup {
     background: #2d2d3d;
     border-color: #555;
     box-shadow: 6px 6px 0px #111;
 }
 
-#desktop[data-theme="dark"] .start-header {
+#desktop[data-theme="dark"] .start-header,
+#desktop[data-theme="dark"] .cal-header {
     background: #3d3d5c;
     border-color: #555;
     color: #e8e8e8;
 }
 
-#desktop[data-theme="dark"] .start-item {
+#desktop[data-theme="dark"] .start-item,
+#desktop[data-theme="dark"] .cal-day {
     color: #e8e8e8;
 }
 
-#desktop[data-theme="dark"] .start-item:hover {
+#desktop[data-theme="dark"] .start-item:hover,
+#desktop[data-theme="dark"] .cal-day.today {
     background: #3d3d5c;
 }
 
@@ -560,4 +952,9 @@ body {
 #desktop[data-theme="dark"] .terminal-body {
     background: #1e1e2e;
     border-color: #555;
+}
+
+#desktop[data-theme="dark"] .wp-btn {
+    border-color: #555;
+    box-shadow: 2px 2px 0px #111;
 }
