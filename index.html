@@ -10,11 +10,23 @@
 </head>
 <body>
 
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen">
+        <div class="login-card">
+            <div class="login-avatar">🎨</div>
+            <h2>Doodle OS</h2>
+            <p>Enter your password to continue</p>
+            <input type="password" id="login-password" placeholder="Password" maxlength="20">
+            <button id="login-btn">Unlock 🔓</button>
+            <div class="login-hint">Hint: doodle</div>
+        </div>
+    </div>
+
     <!-- WELCOME SCREEN -->
-    <div id="welcome-screen">
+    <div id="welcome-screen" class="hidden">
         <div class="welcome-card">
             <h1>Welcome to Doodle OS</h1>
-            <p>Hi! I'm <strong>Muhammad Dawood</strong> — this is my little corner of the internet, built to look like a hand-drawn desktop.</p>
+            <p>Hi! I am <strong>Muhammad Dawood</strong> — this is my little corner of the internet, built to look like a hand-drawn desktop.</p>
             <button id="enter-btn">Enter DoodleOS →</button>
         </div>
     </div>
@@ -31,13 +43,25 @@
                 <div class="icon-draw">💻</div>
                 <span>Terminal</span>
             </div>
-            <div class="desktop-icon" data-app="settings">
-                <div class="icon-draw">⚙️</div>
-                <span>Settings</span>
+            <div class="desktop-icon" data-app="calculator">
+                <div class="icon-draw">🧮</div>
+                <span>Calculator</span>
+            </div>
+            <div class="desktop-icon" data-app="filemanager">
+                <div class="icon-draw">🗂️</div>
+                <span>Files</span>
+            </div>
+            <div class="desktop-icon" data-app="snake">
+                <div class="icon-draw">🐍</div>
+                <span>Snake</span>
             </div>
             <div class="desktop-icon" data-app="browser">
                 <div class="icon-draw">🌐</div>
                 <span>Browser</span>
+            </div>
+            <div class="desktop-icon" data-app="settings">
+                <div class="icon-draw">⚙️</div>
+                <span>Settings</span>
             </div>
         </div>
 
@@ -51,8 +75,15 @@
             </div>
             <div class="taskbar-center" id="taskbar-apps"></div>
             <div class="taskbar-right">
+                <div id="calendar-btn">📅</div>
                 <div id="clock">12:00 PM</div>
             </div>
+        </div>
+
+        <!-- Calendar Popup -->
+        <div id="calendar-popup" class="hidden">
+            <div class="cal-header" id="cal-month-year"></div>
+            <div class="cal-days" id="cal-days"></div>
         </div>
 
         <!-- Start Menu -->
@@ -60,8 +91,11 @@
             <div class="start-header">Doodle OS</div>
             <div class="start-item" data-app="notepad">📝 Notepad</div>
             <div class="start-item" data-app="terminal">💻 Terminal</div>
-            <div class="start-item" data-app="settings">⚙️ Settings</div>
+            <div class="start-item" data-app="calculator">🧮 Calculator</div>
+            <div class="start-item" data-app="filemanager">🗂️ Files</div>
+            <div class="start-item" data-app="snake">🐍 Snake</div>
             <div class="start-item" data-app="browser">🌐 Browser</div>
+            <div class="start-item" data-app="settings">⚙️ Settings</div>
             <div class="start-divider"></div>
             <div class="start-item" id="shutdown-btn">⏻ Shut Down</div>
         </div>
