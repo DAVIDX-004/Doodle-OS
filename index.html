@@ -1,106 +1,362 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doodle OS</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Doodle OS — A lightweight, modern web-based desktop simulation." />
+  <title>Doodle OS</title>
+
+  <!-- Typography: Inter font family -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Application Entry Point -->
+  <script src="script.js" defer></script>
 </head>
 <body>
 
-    <!-- LOGIN SCREEN -->
-    <div id="login-screen">
-        <div class="login-card">
-            <div class="login-avatar">🎨</div>
-            <h2>Doodle OS</h2>
-            <p>Enter your password to continue</p>
-            <input type="password" id="login-password" placeholder="Password" maxlength="20">
-            <button id="login-btn">Unlock 🔓</button>
-            <div class="login-hint">Hint: doodle</div>
+  <!-- =========================================================================
+       1. AUTHENTICATION & ONBOARDING OVERLAYS
+       ========================================================================= -->
+
+  <!-- Login Screen Overlay -->
+  <section id="login-screen" class="screen-overlay" aria-label="User Login" role="dialog" aria-modal="true">
+    <div class="login-card" role="document">
+      <!-- Stylized "D" Logo with Doodle Accent -->
+      <div class="login-logo-container">
+        <svg class="login-logo" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect width="56" height="56" rx="14" fill="#3B82F6" fill-opacity="0.1" />
+          <path d="M18 14H28C35.732 14 42 20.268 42 28C42 35.732 35.732 42 28 42H18V14Z" stroke="#3B82F6" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M18 28H28" stroke="#3B82F6" stroke-width="3.5" stroke-linecap="round" />
+          <path d="M31 22C33.5 24 33.5 32 31 34" stroke="#14B8A6" stroke-width="2.5" stroke-linecap="round" />
+          <circle cx="40" cy="16" r="2.5" fill="#14B8A6" />
+        </svg>
+      </div>
+
+      <h1 class="login-title">Doodle OS</h1>
+      <p class="login-subtitle">Enter your password to unlock the workspace</p>
+
+      <form id="login-form" class="login-form" autocomplete="off">
+        <div class="input-group">
+          <label for="login-password" class="sr-only">Password</label>
+          <input 
+            type="password" 
+            id="login-password" 
+            class="input-field" 
+            placeholder="Enter password" 
+            autocomplete="current-password" 
+            required 
+            aria-required="true"
+          />
         </div>
+        <button type="submit" id="login-btn" class="btn btn-primary btn-block">
+          Unlock System
+        </button>
+      </form>
+
+      <p class="login-hint">Default password: <code>doodle</code></p>
+    </div>
+  </section>
+
+  <!-- Welcome Onboarding Screen -->
+  <section id="welcome-screen" class="screen-overlay hidden" aria-label="Welcome Introduction" role="dialog" aria-modal="true">
+    <div class="welcome-card" role="document">
+      <div class="welcome-badge" aria-hidden="true">v1.0</div>
+      <h2 class="welcome-title">Welcome to Doodle OS</h2>
+      <p class="welcome-text">
+        A minimalist web desktop crafted with clean aesthetics, responsive window management, and native productivity apps.
+      </p>
+      <div class="welcome-features">
+        <div class="feature-item">
+          <span class="feature-dot" aria-hidden="true"></span>
+          <span>Window manager with snapping & depth layering</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-dot" aria-hidden="true"></span>
+          <span>Local storage file system & integrated terminal</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-dot" aria-hidden="true"></span>
+          <span>Configurable theme palette & audio feedback</span>
+        </div>
+      </div>
+      <button type="button" id="enter-btn" class="btn btn-primary btn-block">
+        Enter Doodle OS
+      </button>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       2. DESKTOP WORKSPACE
+       ========================================================================= -->
+  <main id="desktop" class="desktop hidden" data-wallpaper="dots" data-theme="light" role="main" aria-label="Desktop Canvas">
+
+    <!-- Desktop Application Shortcuts -->
+    <nav class="desktop-grid" aria-label="Desktop Shortcuts">
+      
+      <!-- Notepad -->
+      <button type="button" class="desktop-shortcut" data-app="notepad" aria-label="Open Notepad">
+        <div class="shortcut-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <line x1="10" y1="9" x2="8" y2="9" />
+          </svg>
+        </div>
+        <span class="shortcut-label">Notepad</span>
+      </button>
+
+      <!-- Terminal -->
+      <button type="button" class="desktop-shortcut" data-app="terminal" aria-label="Open Terminal">
+        <div class="shortcut-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <polyline points="7 10 10 12 7 14" />
+            <line x1="12" y1="14" x2="16" y2="14" />
+          </svg>
+        </div>
+        <span class="shortcut-label">Terminal</span>
+      </button>
+
+      <!-- Calculator -->
+      <button type="button" class="desktop-shortcut" data-app="calculator" aria-label="Open Calculator">
+        <div class="shortcut-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="3" />
+            <line x1="8" y1="6" x2="16" y2="6" />
+            <circle cx="8" cy="10" r="0.75" fill="currentColor" />
+            <circle cx="12" cy="10" r="0.75" fill="currentColor" />
+            <circle cx="16" cy="10" r="0.75" fill="currentColor" />
+            <circle cx="8" cy="14" r="0.75" fill="currentColor" />
+            <circle cx="12" cy="14" r="0.75" fill="currentColor" />
+            <circle cx="16" cy="14" r="0.75" fill="currentColor" />
+            <circle cx="8" cy="18" r="0.75" fill="currentColor" />
+            <circle cx="12" cy="18" r="0.75" fill="currentColor" />
+            <circle cx="16" cy="18" r="0.75" fill="currentColor" />
+          </svg>
+        </div>
+        <span class="shortcut-label">Calculator</span>
+      </button>
+
+      <!-- File Manager -->
+      <button type="button" class="desktop-shortcut" data-app="filemanager" aria-label="Open File Manager">
+        <div class="shortcut-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+        </div>
+        <span class="shortcut-label">Files</span>
+      </button>
+
+      <!-- Snake Game -->
+      <button type="button" class="desktop-shortcut" data-app="snake" aria-label="Open Snake Game">
+        <div class="shortcut-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="3" />
+            <path d="M8 16V12A2 2 0 0 1 10 10H14A2 2 0 0 0 16 8V8" />
+            <circle cx="16" cy="8" r="1" fill="currentColor" />
+            <circle cx="8" cy="8" r="1.2" fill="#14B8A6" />
+          </svg>
+        </div>
+        <span class="shortcut-label">Snake</span>
+      </button>
+
+      <!-- Browser -->
+      <button type="button" class="desktop-shortcut" data-app="browser" aria-label="Open Browser">
+        <div class="shortcut-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+        </div>
+        <span class="shortcut-label">Browser</span>
+      </button>
+
+      <!-- Settings -->
+      <button type="button" class="desktop-shortcut" data-app="settings" aria-label="Open Settings">
+        <div class="shortcut-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </div>
+        <span class="shortcut-label">Settings</span>
+      </button>
+
+    </nav>
+
+    <!-- Dynamic Window Container Layer -->
+    <section id="windows-container" class="windows-container" aria-label="Open Application Windows"></section>
+  </main>
+
+  <!-- =========================================================================
+       3. SYSTEM FLYOUTS (Start Menu & Calendar)
+       ========================================================================= -->
+
+  <!-- Start Menu Flyout -->
+  <aside id="start-menu" class="start-menu hidden" aria-label="Application Launcher" role="menu" aria-hidden="true">
+    <header class="start-menu-header">
+      <div class="user-profile">
+        <div class="user-avatar" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </div>
+        <div class="user-details">
+          <span class="user-name">Muhammad Dawood</span>
+          <span class="user-role">Administrator</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="start-menu-body" role="none">
+      <span class="menu-section-label">Applications</span>
+
+      <button type="button" class="start-menu-item" data-app="notepad" role="menuitem">
+        <svg class="menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+        <span>Notepad</span>
+      </button>
+
+      <button type="button" class="start-menu-item" data-app="terminal" role="menuitem">
+        <svg class="menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="3" />
+          <polyline points="7 10 10 12 7 14" />
+          <line x1="12" y1="14" x2="16" y2="14" />
+        </svg>
+        <span>Terminal</span>
+      </button>
+
+      <button type="button" class="start-menu-item" data-app="calculator" role="menuitem">
+        <svg class="menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="2" width="16" height="20" rx="3" />
+          <line x1="8" y1="6" x2="16" y2="6" />
+          <circle cx="8" cy="11" r="1" fill="currentColor" />
+          <circle cx="12" cy="11" r="1" fill="currentColor" />
+          <circle cx="16" cy="11" r="1" fill="currentColor" />
+          <circle cx="8" cy="16" r="1" fill="currentColor" />
+          <circle cx="12" cy="16" r="1" fill="currentColor" />
+          <circle cx="16" cy="16" r="1" fill="currentColor" />
+        </svg>
+        <span>Calculator</span>
+      </button>
+
+      <button type="button" class="start-menu-item" data-app="filemanager" role="menuitem">
+        <svg class="menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+        <span>File Manager</span>
+      </button>
+
+      <button type="button" class="start-menu-item" data-app="snake" role="menuitem">
+        <svg class="menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="3" />
+          <path d="M8 16V12A2 2 0 0 1 10 10H14A2 2 0 0 0 16 8V8" />
+        </svg>
+        <span>Snake Game</span>
+      </button>
+
+      <button type="button" class="start-menu-item" data-app="browser" role="menuitem">
+        <svg class="menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="2" y1="12" x2="22" y2="12" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+        <span>Web Browser</span>
+      </button>
+
+      <button type="button" class="start-menu-item" data-app="settings" role="menuitem">
+        <svg class="menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+        <span>Settings</span>
+      </button>
+
+      <div class="menu-divider" role="separator" aria-orientation="horizontal"></div>
+
+      <button type="button" id="shutdown-btn" class="start-menu-item item-danger" role="menuitem">
+        <svg class="menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+          <line x1="12" y1="2" x2="12" y2="12" />
+        </svg>
+        <span>Shut Down</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Calendar Flyout -->
+  <aside id="calendar-popup" class="calendar-popup hidden" aria-label="System Calendar" role="dialog" aria-modal="false">
+    <header class="cal-header">
+      <h3 id="cal-month-year" class="cal-title" aria-live="polite">September 2026</h3>
+    </header>
+    <div id="cal-days" class="cal-grid" role="grid" aria-readonly="true"></div>
+  </aside>
+
+  <!-- =========================================================================
+       4. SYSTEM TASKBAR
+       ========================================================================= -->
+  <footer id="taskbar" class="taskbar" role="contentinfo" aria-label="System Taskbar">
+    
+    <!-- Start Button -->
+    <div class="taskbar-section taskbar-left">
+      <button 
+        type="button" 
+        id="start-btn" 
+        class="taskbar-btn taskbar-start-btn" 
+        aria-haspopup="menu" 
+        aria-expanded="false" 
+        aria-controls="start-menu"
+        aria-label="Open Start Menu"
+      >
+        <svg class="start-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="5.5" height="5.5" rx="1.2" />
+          <rect x="11.5" y="3" width="5.5" height="5.5" rx="1.2" />
+          <rect x="3" y="11.5" width="5.5" height="5.5" rx="1.2" />
+          <rect x="11.5" y="11.5" width="5.5" height="5.5" rx="1.2" />
+        </svg>
+        <span class="start-btn-label">Start</span>
+      </button>
     </div>
 
-    <!-- WELCOME SCREEN -->
-    <div id="welcome-screen" class="hidden">
-        <div class="welcome-card">
-            <h1>Welcome to Doodle OS</h1>
-            <p>Hi! I am <strong>Muhammad Dawood</strong> — this is my little corner of the internet, built to look like a hand-drawn desktop.</p>
-            <button id="enter-btn">Enter DoodleOS →</button>
-        </div>
+    <!-- Active Window Chips -->
+    <div id="taskbar-apps" class="taskbar-section taskbar-center" role="toolbar" aria-label="Active Windows Bar"></div>
+
+    <!-- System Tray / Status -->
+    <div class="taskbar-section taskbar-right">
+      <button 
+        type="button" 
+        id="calendar-btn" 
+        class="taskbar-btn taskbar-tray-btn" 
+        aria-label="Toggle Calendar" 
+        aria-haspopup="dialog" 
+        aria-expanded="false"
+        aria-controls="calendar-popup"
+      >
+        <svg class="tray-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      </button>
+
+      <time id="clock" class="taskbar-clock" aria-label="Current system time"></time>
     </div>
 
-    <!-- DESKTOP -->
-    <div id="desktop" class="hidden">
-        <!-- Desktop Icons -->
-        <div class="desktop-icons">
-            <div class="desktop-icon" data-app="notepad">
-                <div class="icon-draw">📝</div>
-                <span>Notepad</span>
-            </div>
-            <div class="desktop-icon" data-app="terminal">
-                <div class="icon-draw">💻</div>
-                <span>Terminal</span>
-            </div>
-            <div class="desktop-icon" data-app="calculator">
-                <div class="icon-draw">🧮</div>
-                <span>Calculator</span>
-            </div>
-            <div class="desktop-icon" data-app="filemanager">
-                <div class="icon-draw">🗂️</div>
-                <span>Files</span>
-            </div>
-            <div class="desktop-icon" data-app="snake">
-                <div class="icon-draw">🐍</div>
-                <span>Snake</span>
-            </div>
-            <div class="desktop-icon" data-app="browser">
-                <div class="icon-draw">🌐</div>
-                <span>Browser</span>
-            </div>
-            <div class="desktop-icon" data-app="settings">
-                <div class="icon-draw">⚙️</div>
-                <span>Settings</span>
-            </div>
-        </div>
+  </footer>
 
-        <!-- Windows Container -->
-        <div id="windows-container"></div>
-
-        <!-- Taskbar -->
-        <div id="taskbar">
-            <div class="taskbar-left">
-                <button id="start-btn">☰ Start</button>
-            </div>
-            <div class="taskbar-center" id="taskbar-apps"></div>
-            <div class="taskbar-right">
-                <div id="calendar-btn">📅</div>
-                <div id="clock">12:00 PM</div>
-            </div>
-        </div>
-
-        <!-- Calendar Popup -->
-        <div id="calendar-popup" class="hidden">
-            <div class="cal-header" id="cal-month-year"></div>
-            <div class="cal-days" id="cal-days"></div>
-        </div>
-
-        <!-- Start Menu -->
-        <div id="start-menu" class="hidden">
-            <div class="start-header">Doodle OS</div>
-            <div class="start-item" data-app="notepad">📝 Notepad</div>
-            <div class="start-item" data-app="terminal">💻 Terminal</div>
-            <div class="start-item" data-app="calculator">🧮 Calculator</div>
-            <div class="start-item" data-app="filemanager">🗂️ Files</div>
-            <div class="start-item" data-app="snake">🐍 Snake</div>
-            <div class="start-item" data-app="browser">🌐 Browser</div>
-            <div class="start-item" data-app="settings">⚙️ Settings</div>
-            <div class="start-divider"></div>
-            <div class="start-item" id="shutdown-btn">⏻ Shut Down</div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
 </body>
 </html>
