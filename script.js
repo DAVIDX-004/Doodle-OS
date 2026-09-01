@@ -1,805 +1,1387 @@
-// ========== AUDIO / SOUND EFFECTS ==========
-let audioCtx = null;
-let soundEnabled = localStorage.getItem('doodleOS_sound') !== 'false';
+/**
+ * @fileoverview Doodle OS — Core Desktop Simulation Architecture
+ * A modern, modular desktop environment built with pure vanilla ES6+.
+ *
+ * Subsystems:
+ * - StorageManager: Safe storage access with quota error handling.
+ * - SoundSystem: Synthesizes system audio using the Web Audio API.
+ * - VirtualDisk: File store persisted via localStorage.
+ * - WindowManager: Dynamic window creation, dragging, layering, and tab sync.
+ * - AppControllers: Native application logic (Notepad, Terminal, Calculator, etc.).
+ * - DesktopEnvironment: Shell orchestration, start menu, calendar, and auth flow.
+ */
 
-function initAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-}
+'use strict';
 
-function playTone(freq, type, duration) {
-    if (!soundEnabled || !audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type || 'sine';
-    osc.frequency.value = freq;
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (duration || 0.1));
-    osc.stop(audioCtx.currentTime + (duration || 0.1));
-}
+(() => {
+  // =========================================================================
+  // 1. CONFIGURATION & CONSTANTS
+  // =========================================================================
 
-function playPop() { initAudio(); playTone(520, 'sine', 0.08); }
-function playOpen() { initAudio(); playTone(440, 'sine', 0.1); setTimeout(function() { playTone(660, 'sine', 0.12); }, 70); }
-function playClose() { initAudio(); playTone(500, 'sine', 0.1); setTimeout(function() { playTone(300, 'sine', 0.12); }, 70); }
-function playClick() { initAudio(); playTone(800, 'triangle', 0.05); }
-function playError() { initAudio(); playTone(180, 'sawtooth', 0.18); }
+  const STORAGE_KEYS = Object.freeze({
+    SOUND: 'doodleOS_sound',
+    FILES: 'doodleOS_files',
+    WALLPAPER: 'doodleOS_wallpaper',
+    THEME: 'doodleOS_theme',
+    SESSION: 'doodleOS_session'
+  });
 
-// ========== FILE SYSTEM ==========
-const FileSystem = {
-    files: {},
-    load() {
-        const saved = localStorage.getItem('doodleOS_files');
-        if (saved) this.files = JSON.parse(saved);
-    },
-    save() {
-        localStorage.setItem('doodleOS_files', JSON.stringify(this.files));
-    },
-    create(name, content) {
-        this.files[name] = content;
-        this.save();
-    },
-    delete(name) {
-        delete this.files[name];
-        this.save();
-    },
-    list() {
-        return Object.keys(this.files);
-    }
-};
-FileSystem.load();
+  const AUTH_CONFIG = Object.freeze({
+    PASSWORD: 'doodle',
+    USER_NAME: 'Muhammad Dawood',
+    USER_ROLE: 'Administrator'
+  });
 
-// ========== WALLPAPER ==========
-function setWallpaper(name) {
-    document.getElementById('desktop').setAttribute('data-wallpaper', name || 'dots');
-    localStorage.setItem('doodleOS_wallpaper', name || 'dots');
-}
-
-const savedWallpaper = localStorage.getItem('doodleOS_wallpaper');
-if (savedWallpaper) setWallpaper(savedWallpaper);
-
-// ========== THEME ==========
-function setTheme(theme) {
-    document.getElementById('desktop').setAttribute('data-theme', theme);
-    localStorage.setItem('doodleOS_theme', theme);
-}
-
-const savedTheme = localStorage.getItem('doodleOS_theme');
-if (savedTheme) {
-    document.getElementById('desktop').setAttribute('data-theme', savedTheme);
-}
-
-// ========== WELCOME SCREEN ==========
-const welcomeScreen = document.getElementById('welcome-screen');
-const enterBtn = document.getElementById('enter-btn');
-const desktop = document.getElementById('desktop');
-
-enterBtn.addEventListener('click', function() {
-    playOpen();
-    welcomeScreen.classList.add('fade-out');
-    setTimeout(function() {
-        welcomeScreen.style.display = 'none';
-        desktop.classList.remove('hidden');
-    }, 600);
-});
-
-// ========== LOGIN SYSTEM (DECLARED AFTER welcomeScreen) ==========
-const loginScreen = document.getElementById('login-screen');
-const loginPassword = document.getElementById('login-password');
-const loginBtn = document.getElementById('login-btn');
-
-function checkLogin() {
-    if (sessionStorage.getItem('doodleOS_loggedIn') === 'true') {
-        loginScreen.style.display = 'none';
-        welcomeScreen.classList.remove('hidden');
-    }
-}
-checkLogin();
-
-loginBtn.addEventListener('click', function() {
-    if (loginPassword.value === 'doodle') {
-        playOpen();
-        sessionStorage.setItem('doodleOS_loggedIn', 'true');
-        loginScreen.classList.add('fade-out');
-        setTimeout(function() {
-            loginScreen.style.display = 'none';
-            welcomeScreen.classList.remove('hidden');
-        }, 600);
-    } else {
-        playError();
-        loginPassword.style.borderColor = '#f5b7b1';
-        loginPassword.value = '';
-        loginPassword.placeholder = 'Wrong password!';
-        setTimeout(function() {
-            loginPassword.style.borderColor = '#2d2d2d';
-            loginPassword.placeholder = 'Password';
-        }, 1000);
-    }
-});
-
-loginPassword.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') loginBtn.click();
-});
-
-// ========== CALENDAR WIDGET ==========
-const calendarBtn = document.getElementById('calendar-btn');
-const calendarPopup = document.getElementById('calendar-popup');
-
-calendarBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    playClick();
-    calendarPopup.classList.toggle('hidden');
-    if (!calendarPopup.classList.contains('hidden')) renderCalendar();
-});
-
-document.addEventListener('click', function(e) {
-    if (!calendarPopup.contains(e.target) && e.target !== calendarBtn) {
-        calendarPopup.classList.add('hidden');
-    }
-});
-
-function renderCalendar() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    document.getElementById('cal-month-year').textContent = monthNames[month] + ' ' + year;
-    
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const today = now.getDate();
-    
-    let html = '<div class="cal-day-name">Su</div><div class="cal-day-name">Mo</div><div class="cal-day-name">Tu</div><div class="cal-day-name">We</div><div class="cal-day-name">Th</div><div class="cal-day-name">Fr</div><div class="cal-day-name">Sa</div>';
-    
-    for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
-    for (let d = 1; d <= daysInMonth; d++) {
-        const cls = d === today ? 'cal-day today' : 'cal-day';
-        html += '<div class="' + cls + '">' + d + '</div>';
-    }
-    document.getElementById('cal-days').innerHTML = html;
-}
-
-// ========== CLOCK ==========
-function updateClock() {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-    });
-    document.getElementById('clock').textContent = timeString;
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-// ========== START MENU ==========
-const startBtn = document.getElementById('start-btn');
-const startMenu = document.getElementById('start-menu');
-
-startBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    playClick();
-    startMenu.classList.toggle('hidden');
-});
-
-document.addEventListener('click', function(e) {
-    if (!startMenu.contains(e.target) && e.target !== startBtn) {
-        startMenu.classList.add('hidden');
-    }
-});
-
-// ========== WINDOW MANAGER ==========
-let windowCount = 0;
-let zIndexCounter = 100;
-const windowsContainer = document.getElementById('windows-container');
-const taskbarApps = document.getElementById('taskbar-apps');
-
-const apps = {
+  const APP_CONFIGS = Object.freeze({
     notepad: {
-        title: '📝 Notepad',
-        width: 560,
-        height: 420,
-        content: ''
+      title: 'Notepad',
+      width: 560,
+      height: 400
     },
     terminal: {
-        title: '💻 Terminal',
-        width: 520,
-        height: 320,
-        content: ''
+      title: 'Terminal',
+      width: 540,
+      height: 340
     },
     calculator: {
-        title: '🧮 Calculator',
-        width: 320,
-        height: 440,
-        content: ''
+      title: 'Calculator',
+      width: 320,
+      height: 420
     },
     filemanager: {
-        title: '🗂️ Files',
-        width: 500,
-        height: 380,
-        content: ''
+      title: 'File Manager',
+      width: 520,
+      height: 380
     },
     snake: {
-        title: '🐍 Snake',
-        width: 420,
-        height: 500,
-        content: ''
+      title: 'Snake Game',
+      width: 400,
+      height: 480
     },
     browser: {
-        title: '🌐 Browser',
-        width: 600,
-        height: 440,
-        content: ''
+      title: 'Web Browser',
+      width: 620,
+      height: 420
     },
     settings: {
-        title: '⚙️ Settings',
-        width: 420,
-        height: 400,
-        content: '<div style="padding:14px;"><h3 style="margin-bottom:14px;">Doodle OS Settings</h3><div style="margin-bottom:12px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="settings-sound" checked> 🔊 Sound Effects</label></div><div style="margin-bottom:12px;"><label style="display:block;margin-bottom:6px;">🎨 Theme:</label><select id="theme-select" style="font-family:inherit;padding:4px;border:2px solid #2d2d2d;border-radius:6px;width:100%;"><option>Doodle Light</option><option>Doodle Dark</option></select></div><div style="margin-bottom:12px;"><label style="display:block;margin-bottom:6px;">🖼️ Wallpaper:</label><div class="wp-options"><button class="wp-btn" data-wp="dots" style="background:#fef6e4;">Dots</button><button class="wp-btn" data-wp="grid" style="background:#fff;">Grid</button><button class="wp-btn" data-wp="lines" style="background:#e8f6f3;">Lines</button><button class="wp-btn" data-wp="crosses" style="background:#fae1dd;">Cross</button><button class="wp-btn" data-wp="stars" style="background:#8bd3dd;">Stars</button></div></div><p style="margin-top:16px;color:#666;font-size:0.95rem;">More settings coming soon! 🎨</p></div>'
+      title: 'Settings',
+      width: 440,
+      height: 380
     }
-};
+  });
 
-function openApp(appName) {
-    const app = apps[appName];
-    if (!app) return;
+  // =========================================================================
+  // 2. STORAGE MANAGER (Resilient I/O)
+  // =========================================================================
 
-    windowCount++;
-    const winId = 'win-' + windowCount;
-    
-    const win = document.createElement('div');
-    win.className = 'window';
-    win.id = winId;
-    win.style.width = app.width + 'px';
-    win.style.height = app.height + 'px';
-    win.style.left = (80 + windowCount * 25) + 'px';
-    win.style.top = (40 + windowCount * 25) + 'px';
-    win.style.zIndex = ++zIndexCounter;
-
-    let bodyContent = app.content;
-    
-    if (appName === 'notepad') {
-        const npId = 'np-' + winId;
-        bodyContent = 
-            '<div style="display:flex;flex-direction:column;height:100%;">' +
-                '<div class="np-toolbar">' +
-                    '<button class="np-btn" onclick="notepadNew(\'' + npId + '\')">🆕 New</button>' +
-                    '<button class="np-btn" onclick="notepadSave(\'' + npId + '\')">💾 Save</button>' +
-                    '<select class="np-btn" id="' + npId + '-files" onchange="notepadOpen(\'' + npId + '\', this.value)">' +
-                        '<option value="">📂 Open...</option>' +
-                    '</select>' +
-                    '<span class="np-status" id="' + npId + '-status"></span>' +
-                '</div>' +
-                '<textarea id="' + npId + '" class="notepad-textarea" placeholder="Start doodling your thoughts here..." style="flex:1;"></textarea>' +
-            '</div>';
-    } else if (appName === 'terminal') {
-        bodyContent = '<div class="terminal-body" id="term-' + winId + '"><div>Welcome to Doodle Terminal v1.0</div><div>Type \'help\' for available commands.</div><br><div class="terminal-input-line"><span class="terminal-prompt">doodle@os:~$</span><input type="text" class="terminal-input" autofocus></div></div>';
-    } else if (appName === 'calculator') {
-        const calcId = 'calc-' + winId;
-        bodyContent = '<div id="' + calcId + '" class="calc-container"><div class="calc-display">0</div><div class="calc-buttons">' +
-            '<button class="calc-btn calc-clear">C</button><button class="calc-btn calc-op">÷</button><button class="calc-btn calc-op">×</button><button class="calc-btn calc-del">⌫</button>' +
-            '<button class="calc-btn">7</button><button class="calc-btn">8</button><button class="calc-btn">9</button><button class="calc-btn calc-op">-</button>' +
-            '<button class="calc-btn">4</button><button class="calc-btn">5</button><button class="calc-btn">6</button><button class="calc-btn calc-op">+</button>' +
-            '<button class="calc-btn">1</button><button class="calc-btn">2</button><button class="calc-btn">3</button><button class="calc-btn calc-eq">=</button>' +
-            '<button class="calc-btn calc-zero">0</button><button class="calc-btn">.</button>' +
-        '</div></div>';
-    } else if (appName === 'filemanager') {
-        bodyContent = '<div id="fm-' + winId + '" class="fm-container"><div class="fm-toolbar"><button class="fm-btn" onclick="fmRefresh(\'' + winId + '\')">🔄 Refresh</button><span class="fm-count" id="fm-count-' + winId + '">0 files</span></div><div class="fm-grid" id="fm-grid-' + winId + '"></div></div>';
-    } else if (appName === 'snake') {
-        const snakeId = 'snake-' + winId;
-        bodyContent = '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px;"><div style="font-family:Baloo 2,cursive;font-size:1.2rem;">Score: <span id="snake-score-' + winId + '">0</span></div><canvas id="' + snakeId + '" width="360" height="360" style="border:3px solid #2d2d2d;border-radius:8px;background:#fffef7;"></canvas><button class="np-btn" onclick="initSnake(\'' + winId + '\')">▶️ Start / Restart</button></div>';
-    } else if (appName === 'browser') {
-        bodyContent = '<div style="display:flex;flex-direction:column;height:100%;"><div style="display:flex;gap:8px;padding:8px;border-bottom:2px solid #2d2d2d;background:#fef6e4;"><button class="np-btn" onclick="window.open(\'https://google.com\', \'_blank\')" style="padding:4px 10px;">🏠</button><input type="text" id="browser-input-' + winId + '" placeholder="Type URL or search and press Enter..." style="flex:1;font-family:inherit;border:2px solid #2d2d2d;border-radius:6px;padding:4px 10px;"><button class="np-btn" onclick="browserGo(\'' + winId + '\')" style="padding:4px 10px;">Go</button></div><div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#999;"><div style="font-size:3rem;">🌐</div><div>Type a URL or search above</div><div style="font-size:0.9rem;">Opens in your real browser tab</div></div></div>';
+  /**
+   * Safe storage access wrapper that guards against quota and privacy mode exceptions.
+   */
+  class StorageManager {
+    /**
+     * @param {string} key
+     * @param {string|null} fallback
+     * @returns {string|null}
+     */
+    static getLocal(key, fallback = null) {
+      try {
+        const item = localStorage.getItem(key);
+        return item !== null ? item : fallback;
+      } catch (err) {
+        console.warn(`[StorageManager] Read error on key "${key}":`, err);
+        return fallback;
+      }
     }
 
-    win.innerHTML = 
-        '<div class="window-header" data-win="' + winId + '">' +
-            '<span class="window-title">' + app.title + '</span>' +
-            '<div class="window-controls">' +
-                '<button class="window-btn btn-minimize" data-action="minimize" data-win="' + winId + '">−</button>' +
-                '<button class="window-btn btn-maximize" data-action="maximize" data-win="' + winId + '">□</button>' +
-                '<button class="window-btn btn-close" data-action="close" data-win="' + winId + '">×</button>' +
-            '</div>' +
-        '</div>' +
-        '<div class="window-body">' + bodyContent + '</div>';
+    /**
+     * @param {string} key
+     * @param {string} value
+     */
+    static setLocal(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch (err) {
+        console.warn(`[StorageManager] Write error on key "${key}":`, err);
+      }
+    }
 
-    windowsContainer.appendChild(win);
-    
-    win.addEventListener('mousedown', function() {
-        win.style.zIndex = ++zIndexCounter;
-    });
+    /**
+     * @param {string} key
+     * @param {string|null} fallback
+     * @returns {string|null}
+     */
+    static getSession(key, fallback = null) {
+      try {
+        const item = sessionStorage.getItem(key);
+        return item !== null ? item : fallback;
+      } catch (err) {
+        console.warn(`[StorageManager] Session read error on key "${key}":`, err);
+        return fallback;
+      }
+    }
 
-    makeDraggable(win);
+    /**
+     * @param {string} key
+     * @param {string} value
+     */
+    static setSession(key, value) {
+      try {
+        sessionStorage.setItem(key, value);
+      } catch (err) {
+        console.warn(`[StorageManager] Session write error on key "${key}":`, err);
+      }
+    }
 
-    const taskItem = document.createElement('div');
-    taskItem.className = 'taskbar-item active';
-    taskItem.textContent = app.title.split(' ')[1] || app.title;
-    taskItem.dataset.win = winId;
-    taskItem.onclick = function() {
-        if (win.classList.contains('minimized')) {
-            win.classList.remove('minimized');
-            win.style.display = 'flex';
-            taskItem.classList.add('active');
-        } else {
-            win.style.zIndex = ++zIndexCounter;
+    /**
+     * @param {string} key
+     */
+    static removeSession(key) {
+      try {
+        sessionStorage.removeItem(key);
+      } catch (err) {
+        console.warn(`[StorageManager] Session remove error on key "${key}":`, err);
+      }
+    }
+  }
+
+  // =========================================================================
+  // 3. SOUND SYNTHESIZER (Pure Web Audio)
+  // =========================================================================
+
+  /**
+   * Lightweight audio synthesizer creating subtle UI feedback tones without external files.
+   */
+  class SoundSystem {
+    constructor() {
+      /** @type {AudioContext|null} */
+      this.ctx = null;
+      this.enabled = StorageManager.getLocal(STORAGE_KEYS.SOUND, 'true') !== 'false';
+    }
+
+    /**
+     * Lazy-initializes AudioContext on the first genuine user gesture.
+     */
+    initContext() {
+      if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+        const AudioClass = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioClass();
+      }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+    }
+
+    /**
+     * Generates a single envelope-modulated tone.
+     * @param {number} freq - Pitch frequency in Hz
+     * @param {OscillatorType} type - Waveform type
+     * @param {number} duration - Tone duration in seconds
+     * @param {number} volume - Master gain peak
+     */
+    playTone(freq, type = 'sine', duration = 0.08, volume = 0.05) {
+      if (!this.enabled) return;
+      this.initContext();
+      if (!this.ctx) return;
+
+      try {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+      } catch (err) {
+        console.warn('[SoundSystem] Playback error:', err);
+      }
+    }
+
+    playClick() {
+      this.playTone(700, 'triangle', 0.04, 0.03);
+    }
+
+    playOpen() {
+      this.playTone(480, 'sine', 0.08, 0.05);
+      setTimeout(() => this.playTone(680, 'sine', 0.1, 0.05), 50);
+    }
+
+    playClose() {
+      this.playTone(560, 'sine', 0.08, 0.05);
+      setTimeout(() => this.playTone(380, 'sine', 0.1, 0.04), 50);
+    }
+
+    playSuccess() {
+      this.playTone(520, 'sine', 0.06, 0.06);
+      setTimeout(() => this.playTone(780, 'sine', 0.1, 0.06), 60);
+    }
+
+    playError() {
+      this.playTone(220, 'sawtooth', 0.14, 0.08);
+    }
+
+    /**
+     * @param {boolean} isEnabled
+     */
+    setEnabled(isEnabled) {
+      this.enabled = isEnabled;
+      StorageManager.setLocal(STORAGE_KEYS.SOUND, String(isEnabled));
+    }
+  }
+
+  const sound = new SoundSystem();
+
+  // =========================================================================
+  // 4. VIRTUAL FILE SYSTEM
+  // =========================================================================
+
+  /**
+   * Key-value file storage backed by localStorage.
+   */
+  class VirtualDisk {
+    constructor() {
+      /** @type {Record<string, string>} */
+      this.files = {};
+      this.load();
+    }
+
+    load() {
+      const data = StorageManager.getLocal(STORAGE_KEYS.FILES);
+      if (data) {
+        try {
+          this.files = JSON.parse(data);
+        } catch (e) {
+          console.error('[VirtualDisk] Parse failure:', e);
+          this.files = {};
         }
-    };
-    taskbarApps.appendChild(taskItem);
-
-    if (appName === 'notepad') {
-        setTimeout(function() { notepadRefreshFiles('np-' + winId); }, 10);
-    } else if (appName === 'terminal') {
-        setTimeout(function() { setupTerminal(win); }, 10);
-    } else if (appName === 'calculator') {
-        setTimeout(function() { initCalculator(winId); }, 10);
-    } else if (appName === 'filemanager') {
-        setTimeout(function() { fmRefresh(winId); }, 10);
-    } else if (appName === 'snake') {
-        setTimeout(function() { initSnake(winId); }, 10);
-    } else if (appName === 'browser') {
-        setTimeout(function() {
-            const inp = document.getElementById('browser-input-' + winId);
-            if (inp) inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') browserGo(winId); });
-        }, 10);
-    } else if (appName === 'settings') {
-        setTimeout(function() {
-            const themeSelect = win.querySelector('#theme-select');
-            if (themeSelect) {
-                const current = document.getElementById('desktop').getAttribute('data-theme');
-                themeSelect.value = current === 'dark' ? 'Doodle Dark' : 'Doodle Light';
-                themeSelect.addEventListener('change', function(e) {
-                    const theme = e.target.value === 'Doodle Dark' ? 'dark' : 'light';
-                    setTheme(theme);
-                });
-            }
-            const soundCheck = win.querySelector('#settings-sound');
-            if (soundCheck) {
-                soundCheck.checked = soundEnabled;
-                soundCheck.addEventListener('change', function(e) {
-                    soundEnabled = e.target.checked;
-                    localStorage.setItem('doodleOS_sound', soundEnabled);
-                });
-            }
-            win.querySelectorAll('.wp-btn').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    setWallpaper(btn.dataset.wp);
-                    playClick();
-                });
-            });
-        }, 10);
+      }
     }
 
-    playOpen();
-    startMenu.classList.add('hidden');
-}
+    save() {
+      StorageManager.setLocal(STORAGE_KEYS.FILES, JSON.stringify(this.files));
+    }
 
-// Window controls event delegation
-windowsContainer.addEventListener('click', function(e) {
-    const btn = e.target.closest('.window-btn');
-    if (!btn) return;
-    const action = btn.dataset.action;
-    const winId = btn.dataset.win;
-    if (action === 'close') closeWindow(winId);
-    if (action === 'minimize') minimizeWindow(winId);
-    if (action === 'maximize') maximizeWindow(winId);
-});
+    /**
+     * @param {string} filename
+     * @param {string} content
+     */
+    write(filename, content) {
+      this.files[filename] = content;
+      this.save();
+    }
 
-function closeWindow(winId) {
-    const win = document.getElementById(winId);
-    if (!win) return;
-    playClose();
-    win.style.transform = 'scale(0.9)';
-    win.style.opacity = '0';
-    setTimeout(function() {
+    /**
+     * @param {string} filename
+     * @returns {string|null}
+     */
+    read(filename) {
+      return Object.prototype.hasOwnProperty.call(this.files, filename) ? this.files[filename] : null;
+    }
+
+    /**
+     * @param {string} filename
+     */
+    remove(filename) {
+      delete this.files[filename];
+      this.save();
+    }
+
+    /**
+     * @returns {string[]}
+     */
+    list() {
+      return Object.keys(this.files);
+    }
+  }
+
+  const disk = new VirtualDisk();
+
+  // =========================================================================
+  // 5. WINDOW MANAGER
+  // =========================================================================
+
+  /**
+   * Manages desktop window spawning, dragging, stacking, and taskbar synchronization.
+   */
+  class WindowManager {
+    constructor() {
+      this.container = document.getElementById('windows-container');
+      this.taskbarApps = document.getElementById('taskbar-apps');
+      this.windowCount = 0;
+      this.topZIndex = 100;
+
+      /** @type {Map<string, Function>} Cleanup callbacks registered per window */
+      this.cleanups = new Map();
+
+      this.initWindowControls();
+    }
+
+    /**
+     * Event delegation for window header control buttons.
+     */
+    initWindowControls() {
+      this.container.addEventListener('click', (e) => {
+        const btn = e.target.closest('.window-btn');
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        const winId = btn.dataset.win;
+
+        if (action === 'close') this.closeWindow(winId);
+        if (action === 'minimize') this.minimizeWindow(winId);
+        if (action === 'maximize') this.maximizeWindow(winId);
+      });
+    }
+
+    /**
+     * Open an application window.
+     * @param {string} appKey
+     */
+    openWindow(appKey) {
+      const config = APP_CONFIGS[appKey];
+      if (!config) return;
+
+      this.windowCount += 1;
+      const windowId = `win-${this.windowCount}`;
+      this.topZIndex += 1;
+
+      // 1. Build window shell
+      const win = document.createElement('div');
+      win.className = 'window';
+      win.id = windowId;
+      win.dataset.app = appKey;
+      win.style.width = `${config.width}px`;
+      win.style.height = `${config.height}px`;
+
+      const offset = (this.windowCount % 8) * 26;
+      win.style.left = `${Math.min(window.innerWidth - config.width - 24, 80 + offset)}px`;
+      win.style.top = `${Math.min(window.innerHeight - config.height - 70, 50 + offset)}px`;
+      win.style.zIndex = String(this.topZIndex);
+
+      win.innerHTML = `
+        <div class="window-header" data-win="${windowId}">
+          <span class="window-title">${config.title}</span>
+          <div class="window-controls">
+            <button type="button" class="window-btn btn-minimize" data-action="minimize" data-win="${windowId}" aria-label="Minimize"></button>
+            <button type="button" class="window-btn btn-maximize" data-action="maximize" data-win="${windowId}" aria-label="Maximize"></button>
+            <button type="button" class="window-btn btn-close" data-action="close" data-win="${windowId}" aria-label="Close"></button>
+          </div>
+        </div>
+        <div class="window-body" id="body-${windowId}"></div>
+      `;
+
+      this.container.appendChild(win);
+
+      // 2. Bring window to front on mousedown
+      win.addEventListener('mousedown', () => this.bringToFront(win));
+
+      // 3. Attach dragging handler
+      this.setupDragging(win);
+
+      // 4. Create Taskbar Chip
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'taskbar-chip active';
+      chip.textContent = config.title;
+      chip.dataset.win = windowId;
+      chip.addEventListener('click', () => this.toggleWindow(windowId, chip));
+      this.taskbarApps.appendChild(chip);
+
+      // 5. Mount Application
+      const body = win.querySelector(`#body-${windowId}`);
+      AppRouter.mount(appKey, windowId, body, (cleanupFn) => {
+        if (typeof cleanupFn === 'function') {
+          this.cleanups.set(windowId, cleanupFn);
+        }
+      });
+
+      sound.playOpen();
+      DesktopEnvironment.closeStartMenu();
+    }
+
+    /**
+     * @param {HTMLElement} win
+     */
+    bringToFront(win) {
+      this.topZIndex += 1;
+      win.style.zIndex = String(this.topZIndex);
+
+      const chip = this.taskbarApps.querySelector(`.taskbar-chip[data-win="${win.id}"]`);
+      if (chip) {
+        this.taskbarApps.querySelectorAll('.taskbar-chip').forEach((c) => c.classList.remove('active'));
+        chip.classList.add('active');
+      }
+    }
+
+    /**
+     * @param {string} windowId
+     */
+    closeWindow(windowId) {
+      const win = document.getElementById(windowId);
+      if (!win) return;
+
+      sound.playClose();
+      win.classList.add('window-closing');
+
+      // Trigger app cleanup callbacks (e.g. game loops, key listeners)
+      if (this.cleanups.has(windowId)) {
+        try {
+          this.cleanups.get(windowId)();
+        } catch (e) {
+          console.error('[WindowManager] Cleanup error:', e);
+        }
+        this.cleanups.delete(windowId);
+      }
+
+      setTimeout(() => {
         win.remove();
-        const taskItem = document.querySelector('.taskbar-item[data-win="' + winId + '"]');
-        if (taskItem) taskItem.remove();
-        if (snakeGames[winId]) {
-            clearInterval(snakeGames[winId]);
-            delete snakeGames[winId];
-        }
-    }, 200);
-}
+        const chip = this.taskbarApps.querySelector(`.taskbar-chip[data-win="${windowId}"]`);
+        if (chip) chip.remove();
+      }, 150);
+    }
 
-function minimizeWindow(winId) {
-    const win = document.getElementById(winId);
-    const taskItem = document.querySelector('.taskbar-item[data-win="' + winId + '"]');
-    if (win) {
+    /**
+     * @param {string} windowId
+     */
+    minimizeWindow(windowId) {
+      const win = document.getElementById(windowId);
+      const chip = this.taskbarApps.querySelector(`.taskbar-chip[data-win="${windowId}"]`);
+      if (win) {
         win.style.display = 'none';
         win.classList.add('minimized');
-        if (taskItem) taskItem.classList.remove('active');
+        if (chip) chip.classList.remove('active');
+      }
     }
-}
 
-function maximizeWindow(winId) {
-    const win = document.getElementById(winId);
-    if (!win) return;
-    
-    if (win.dataset.maximized === 'true') {
+    /**
+     * @param {string} windowId
+     * @param {HTMLElement} chip
+     */
+    toggleWindow(windowId, chip) {
+      const win = document.getElementById(windowId);
+      if (!win) return;
+
+      if (win.classList.contains('minimized') || win.style.display === 'none') {
+        win.classList.remove('minimized');
+        win.style.display = 'flex';
+        this.bringToFront(win);
+      } else if (chip.classList.contains('active')) {
+        this.minimizeWindow(windowId);
+      } else {
+        this.bringToFront(win);
+      }
+    }
+
+    /**
+     * @param {string} windowId
+     */
+    maximizeWindow(windowId) {
+      const win = document.getElementById(windowId);
+      if (!win) return;
+
+      if (win.dataset.maximized === 'true') {
         win.style.width = win.dataset.prevWidth;
         win.style.height = win.dataset.prevHeight;
         win.style.left = win.dataset.prevLeft;
         win.style.top = win.dataset.prevTop;
         win.dataset.maximized = 'false';
-    } else {
+      } else {
         win.dataset.prevWidth = win.style.width;
         win.dataset.prevHeight = win.style.height;
         win.dataset.prevLeft = win.style.left;
         win.dataset.prevTop = win.style.top;
+
         win.style.width = '100vw';
-        win.style.height = 'calc(100vh - 52px)';
-        win.style.left = '0';
-        win.style.top = '0';
+        win.style.height = 'calc(100vh - 48px)';
+        win.style.left = '0px';
+        win.style.top = '0px';
         win.dataset.maximized = 'true';
+      }
+      this.bringToFront(win);
     }
-}
 
-function makeDraggable(win) {
-    const header = win.querySelector('.window-header');
-    let isDragging = false;
-    let startX, startY, initialLeft, initialTop;
+    /**
+     * Implements document-level drag listeners to prevent mouse slippage.
+     * @param {HTMLElement} win
+     */
+    setupDragging(win) {
+      const header = win.querySelector('.window-header');
+      let isDragging = false;
+      let startX = 0;
+      let startY = 0;
+      let initX = 0;
+      let initY = 0;
 
-    header.addEventListener('mousedown', function(e) {
-        if (win.dataset.maximized === 'true') return;
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        initialLeft = win.offsetLeft;
-        initialTop = win.offsetTop;
-        win.style.zIndex = ++zIndexCounter;
-    });
-
-    document.addEventListener('mousemove', function(e) {
+      const onMouseMove = (e) => {
         if (!isDragging) return;
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        win.style.left = (initialLeft + dx) + 'px';
-        win.style.top = (initialTop + dy) + 'px';
-    });
+        win.style.left = `${initX + dx}px`;
+        win.style.top = `${initY + dy}px`;
+      };
 
-    document.addEventListener('mouseup', function() {
-        isDragging = false;
-    });
-}
-
-// ========== DESKTOP ICONS ==========
-const desktopIconsContainer = document.querySelector('.desktop-icons');
-if (desktopIconsContainer) {
-    desktopIconsContainer.addEventListener('click', function(e) {
-        const icon = e.target.closest('.desktop-icon');
-        if (!icon) return;
-        playClick();
-        document.querySelectorAll('.desktop-icon').forEach(function(i) { i.classList.remove('selected'); });
-        icon.classList.add('selected');
-    });
-    
-    desktopIconsContainer.addEventListener('dblclick', function(e) {
-        const icon = e.target.closest('.desktop-icon');
-        if (!icon) return;
-        openApp(icon.dataset.app);
-    });
-}
-
-// ========== START MENU ITEMS ==========
-document.querySelectorAll('.start-item[data-app]').forEach(function(item) {
-    item.addEventListener('click', function() {
-        openApp(item.dataset.app);
-    });
-});
-
-// ========== SHUTDOWN ==========
-document.getElementById('shutdown-btn').addEventListener('click', function() {
-    playClose();
-    sessionStorage.removeItem('doodleOS_loggedIn');
-    document.body.innerHTML = 
-        '<div style="height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;background:#2d2d2d;color:#fae1dd;font-family:Baloo 2,cursive;">' +
-            '<div style="font-size:3rem;">👋</div>' +
-            '<div style="font-size:1.5rem;">See you later, Muhammad!</div>' +
-            '<div style="font-size:1rem;opacity:0.7;margin-top:10px;">Doodle OS is shutting down...</div>' +
-        '</div>';
-});
-
-// ========== NOTEPAD FILE SYSTEM ==========
-function notepadRefreshFiles(id) {
-    const select = document.getElementById(id + '-files');
-    if (!select) return;
-    const files = FileSystem.list();
-    select.innerHTML = '<option value="">📂 Open...</option>';
-    files.forEach(function(f) {
-        const opt = document.createElement('option');
-        opt.value = f;
-        opt.textContent = f;
-        select.appendChild(opt);
-    });
-}
-
-function notepadNew(id) {
-    playClick();
-    const ta = document.getElementById(id);
-    if (ta) ta.value = '';
-    const status = document.getElementById(id + '-status');
-    if (status) status.textContent = 'New file';
-}
-
-function notepadSave(id) {
-    playPop();
-    const ta = document.getElementById(id);
-    if (!ta) return;
-    const name = prompt('Save as:', 'untitled.txt');
-    if (!name) return;
-    FileSystem.create(name, ta.value);
-    notepadRefreshFiles(id);
-    const status = document.getElementById(id + '-status');
-    if (status) status.textContent = 'Saved: ' + name;
-}
-
-function notepadOpen(id, filename) {
-    if (!filename) return;
-    playClick();
-    const ta = document.getElementById(id);
-    if (ta) ta.value = FileSystem.files[filename] || '';
-    const status = document.getElementById(id + '-status');
-    if (status) status.textContent = 'Opened: ' + filename;
-}
-
-// ========== TERMINAL LOGIC ==========
-function setupTerminal(win) {
-    const termBody = win.querySelector('.terminal-body');
-    if (!termBody) return;
-
-    function handleCommand(input, cmd) {
-        input.disabled = true;
-        let response = '';
-        const c = cmd.toLowerCase();
-        
-        if (c === 'help') {
-            response = 'Available commands: help, date, clear, echo, whoami, reboot, ls';
-        } else if (c === 'date') {
-            response = new Date().toString();
-        } else if (c === 'clear') {
-            termBody.innerHTML = '';
-            addInputLine();
-            return;
-        } else if (c === 'whoami') {
-            response = 'muhammad_dawood (admin)';
-        } else if (c === 'reboot') {
-            response = 'Rebooting Doodle OS...';
-            setTimeout(function() { location.reload(); }, 1000);
-        } else if (c === 'ls') {
-            const files = FileSystem.list();
-            response = files.length ? files.join('  ') : 'No files yet.';
-        } else if (c === '') {
-            response = '';
-        } else if (c.startsWith('echo ')) {
-            response = cmd.slice(5);
-        } else {
-            response = 'Command not found: ' + cmd + ". Type 'help' for available commands.";
+      const onMouseUp = () => {
+        if (isDragging) {
+          isDragging = false;
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
         }
-        
-        if (response) {
-            const respLine = document.createElement('div');
-            respLine.textContent = response;
-            termBody.appendChild(respLine);
-        }
-        termBody.scrollTop = termBody.scrollHeight;
-        addInputLine();
+      };
+
+      header.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.window-btn')) return;
+        if (win.dataset.maximized === 'true') return;
+
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initX = win.offsetLeft;
+        initY = win.offsetTop;
+        this.bringToFront(win);
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+    }
+  }
+
+  const windowManager = new WindowManager();
+
+  // =========================================================================
+  // 6. APPLICATION ROUTER & CONTROLLERS
+  // =========================================================================
+
+  class AppRouter {
+    /**
+     * @param {string} appKey
+     * @param {string} windowId
+     * @param {HTMLElement} container
+     * @param {Function} registerCleanup
+     */
+    static mount(appKey, windowId, container, registerCleanup) {
+      switch (appKey) {
+        case 'notepad':
+          this.mountNotepad(windowId, container);
+          break;
+        case 'terminal':
+          this.mountTerminal(windowId, container, registerCleanup);
+          break;
+        case 'calculator':
+          this.mountCalculator(windowId, container);
+          break;
+        case 'filemanager':
+          this.mountFileManager(windowId, container);
+          break;
+        case 'snake':
+          this.mountSnake(windowId, container, registerCleanup);
+          break;
+        case 'browser':
+          this.mountBrowser(windowId, container);
+          break;
+        case 'settings':
+          this.mountSettings(windowId, container);
+          break;
+        default:
+          container.textContent = 'Application initialized.';
+      }
     }
 
-    function addInputLine() {
+    // --- APP: NOTEPAD ---
+    static mountNotepad(windowId, container) {
+      container.innerHTML = `
+        <div class="notepad-layout">
+          <div class="notepad-toolbar">
+            <button type="button" class="tool-btn" id="${windowId}-new">New</button>
+            <button type="button" class="tool-btn" id="${windowId}-save">Save</button>
+            <select class="tool-select" id="${windowId}-files" aria-label="Open File">
+              <option value="">Open...</option>
+            </select>
+            <span class="tool-status" id="${windowId}-status" aria-live="polite">Ready</span>
+          </div>
+          <textarea id="${windowId}-text" class="notepad-textarea" placeholder="Type your notes here..."></textarea>
+        </div>
+      `;
+
+      const textarea = container.querySelector(`#${windowId}-text`);
+      const status = container.querySelector(`#${windowId}-status`);
+      const fileSelect = container.querySelector(`#${windowId}-files`);
+      const btnNew = container.querySelector(`#${windowId}-new`);
+      const btnSave = container.querySelector(`#${windowId}-save`);
+
+      const refreshFiles = () => {
+        fileSelect.innerHTML = '<option value="">Open...</option>';
+        disk.list().forEach((f) => {
+          const opt = document.createElement('option');
+          opt.value = f;
+          opt.textContent = f;
+          fileSelect.appendChild(opt);
+        });
+      };
+
+      btnNew.addEventListener('click', () => {
+        sound.playClick();
+        textarea.value = '';
+        status.textContent = 'New file';
+      });
+
+      btnSave.addEventListener('click', () => {
+        sound.playSuccess();
+        const filename = prompt('Enter document name:', 'note.txt');
+        if (!filename) return;
+
+        disk.write(filename.trim(), textarea.value);
+        refreshFiles();
+        status.textContent = `Saved ${filename.trim()}`;
+      });
+
+      fileSelect.addEventListener('change', (e) => {
+        const file = e.target.value;
+        if (!file) return;
+        sound.playClick();
+        textarea.value = disk.read(file) || '';
+        status.textContent = `Opened ${file}`;
+      });
+
+      refreshFiles();
+    }
+
+    // --- APP: TERMINAL ---
+    static mountTerminal(windowId, container, registerCleanup) {
+      container.innerHTML = `
+        <div class="terminal-container" id="term-${windowId}">
+          <div>Doodle OS Shell v1.0.0 (x86_64-web)</div>
+          <div>Type 'help' for available commands.</div>
+          <div class="terminal-line">
+            <span class="terminal-prompt">user@doodle:~$</span>
+            <input type="text" class="terminal-input" autofocus aria-label="Terminal Input" />
+          </div>
+        </div>
+      `;
+
+      const term = container.querySelector(`#term-${windowId}`);
+
+      const processCommand = (inputEl, rawCmd) => {
+        inputEl.disabled = true;
+        const cmd = rawCmd.trim();
+        const lower = cmd.toLowerCase();
+        let output = '';
+
+        if (lower === 'help') {
+          output = 'Commands: help, date, clear, echo [text], whoami, reboot, ls, cat [file]';
+        } else if (lower === 'date') {
+          output = new Date().toUTCString();
+        } else if (lower === 'clear') {
+          term.innerHTML = '';
+          createPrompt();
+          return;
+        } else if (lower === 'whoami') {
+          output = `${AUTH_CONFIG.USER_NAME} (${AUTH_CONFIG.USER_ROLE})`;
+        } else if (lower === 'reboot') {
+          output = 'Rebooting system...';
+          setTimeout(() => location.reload(), 600);
+        } else if (lower === 'ls') {
+          const files = disk.list();
+          output = files.length > 0 ? files.join('   ') : 'No files found.';
+        } else if (lower.startsWith('cat ')) {
+          const file = cmd.slice(4).trim();
+          const content = disk.read(file);
+          output = content !== null ? content : `cat: ${file}: No such file`;
+        } else if (lower.startsWith('echo ')) {
+          output = cmd.slice(5);
+        } else if (cmd === '') {
+          output = '';
+        } else {
+          output = `Command not recognized: "${cmd}". Type 'help' for assistance.`;
+        }
+
+        if (output) {
+          const outLine = document.createElement('div');
+          outLine.textContent = output;
+          term.appendChild(outLine);
+        }
+
+        createPrompt();
+      };
+
+      const createPrompt = () => {
         const line = document.createElement('div');
-        line.className = 'terminal-input-line';
-        line.innerHTML = '<span class="terminal-prompt">doodle@os:~$</span><input type="text" class="terminal-input" autofocus>';
-        termBody.appendChild(line);
-        const input = line.querySelector('.terminal-input');
-        input.focus();
-        
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                handleCommand(input, input.value.trim());
-            }
-        });
-    }
-    
-    const firstInput = termBody.querySelector('.terminal-input');
-    if (firstInput) {
-        firstInput.focus();
-        firstInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                handleCommand(firstInput, firstInput.value.trim());
-            }
-        });
-    }
-}
+        line.className = 'terminal-line';
+        line.innerHTML = `
+          <span class="terminal-prompt">user@doodle:~$</span>
+          <input type="text" class="terminal-input" />
+        `;
+        term.appendChild(line);
+        term.scrollTop = term.scrollHeight;
 
-// ========== BROWSER ==========
-function browserGo(winId) {
-    const input = document.getElementById('browser-input-' + winId);
-    if (!input) return;
-    let url = input.value.trim();
-    if (!url) return;
-    if (!url.match(/^https?:\/\//i)) {
-        if (url.includes('.') && !url.includes(' ')) {
-            url = 'https://' + url;
+        const nextInput = line.querySelector('.terminal-input');
+        nextInput.focus();
+        nextInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') processCommand(nextInput, nextInput.value);
+        });
+      };
+
+      const firstInput = term.querySelector('.terminal-input');
+      if (firstInput) {
+        firstInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') processCommand(firstInput, firstInput.value);
+        });
+      }
+
+      registerCleanup(() => {
+        term.innerHTML = '';
+      });
+    }
+
+    // --- APP: CALCULATOR ---
+    static mountCalculator(windowId, container) {
+      container.innerHTML = `
+        <div class="calc-layout">
+          <div class="calc-screen" id="${windowId}-calc-screen" aria-live="polite">0</div>
+          <div class="calc-grid">
+            <button type="button" class="calc-key key-clear">C</button>
+            <button type="button" class="calc-key key-op">÷</button>
+            <button type="button" class="calc-key key-op">×</button>
+            <button type="button" class="calc-key">⌫</button>
+            <button type="button" class="calc-key">7</button>
+            <button type="button" class="calc-key">8</button>
+            <button type="button" class="calc-key">9</button>
+            <button type="button" class="calc-key key-op">-</button>
+            <button type="button" class="calc-key">4</button>
+            <button type="button" class="calc-key">5</button>
+            <button type="button" class="calc-key">6</button>
+            <button type="button" class="calc-key key-op">+</button>
+            <button type="button" class="calc-key">1</button>
+            <button type="button" class="calc-key">2</button>
+            <button type="button" class="calc-key">3</button>
+            <button type="button" class="calc-key key-eq">=</button>
+            <button type="button" class="calc-key key-zero">0</button>
+            <button type="button" class="calc-key">.</button>
+          </div>
+        </div>
+      `;
+
+      const screen = container.querySelector(`#${windowId}-calc-screen`);
+      let currentVal = '0';
+      let storedOperand = null;
+      let activeOperator = null;
+      let resetOnNextInput = false;
+
+      const updateDisplay = () => {
+        screen.textContent = currentVal;
+      };
+
+      container.querySelector('.calc-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('.calc-key');
+        if (!btn) return;
+        sound.playClick();
+
+        const key = btn.textContent.trim();
+
+        if (key === 'C') {
+          currentVal = '0';
+          storedOperand = null;
+          activeOperator = null;
+          resetOnNextInput = false;
+        } else if (key === '⌫') {
+          currentVal = currentVal.length > 1 ? currentVal.slice(0, -1) : '0';
+        } else if (['+', '-', '×', '÷'].includes(key)) {
+          storedOperand = parseFloat(currentVal);
+          activeOperator = key;
+          resetOnNextInput = true;
+        } else if (key === '=') {
+          if (activeOperator && storedOperand !== null) {
+            const currentNum = parseFloat(currentVal);
+            let res = 0;
+
+            if (activeOperator === '+') res = storedOperand + currentNum;
+            if (activeOperator === '-') res = storedOperand - currentNum;
+            if (activeOperator === '×') res = storedOperand * currentNum;
+            if (activeOperator === '÷') res = currentNum === 0 ? 'Error' : storedOperand / currentNum;
+
+            currentVal = String(res);
+            activeOperator = null;
+            storedOperand = null;
+            resetOnNextInput = true;
+          }
         } else {
-            url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
+          if (currentVal === '0' || resetOnNextInput) {
+            currentVal = key === '.' ? '0.' : key;
+            resetOnNextInput = false;
+          } else {
+            if (key === '.' && currentVal.includes('.')) return;
+            currentVal += key;
+          }
         }
+        updateDisplay();
+      });
     }
-    window.open(url, '_blank');
-}
 
-// ========== CALCULATOR ==========
-function initCalculator(winId) {
-    const container = document.getElementById('calc-' + winId);
-    if (!container) return;
-    const display = container.querySelector('.calc-display');
-    let current = '0';
-    let prev = null;
-    let op = null;
-    let resetNext = false;
+    // --- APP: FILE MANAGER ---
+    static mountFileManager(windowId, container) {
+      container.innerHTML = `
+        <div class="fm-layout">
+          <div class="fm-toolbar">
+            <span class="fm-count" id="${windowId}-fm-count">0 items</span>
+            <button type="button" class="tool-btn" id="${windowId}-fm-refresh">Refresh</button>
+          </div>
+          <div class="fm-grid" id="${windowId}-fm-grid"></div>
+        </div>
+      `;
 
-    function update() { display.textContent = current; }
-    
-    container.querySelectorAll('.calc-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            playClick();
-            const val = btn.textContent;
-            if (val === 'C') {
-                current = '0'; prev = null; op = null;
-            } else if (val === '⌫') {
-                current = current.length > 1 ? current.slice(0, -1) : '0';
-            } else if (val === '+' || val === '-' || val === '×' || val === '÷') {
-                prev = parseFloat(current);
-                op = val;
-                resetNext = true;
-            } else if (val === '=') {
-                if (op && prev !== null) {
-                    const curr = parseFloat(current);
-                    if (op === '+') current = String(prev + curr);
-                    if (op === '-') current = String(prev - curr);
-                    if (op === '×') current = String(prev * curr);
-                    if (op === '÷') current = curr === 0 ? 'Error' : String(prev / curr);
-                    op = null; prev = null; resetNext = true;
-                }
-            } else {
-                if (current === '0' || resetNext) { current = val; resetNext = false; }
-                else current += val;
+      const grid = container.querySelector(`#${windowId}-fm-grid`);
+      const countEl = container.querySelector(`#${windowId}-fm-count`);
+      const btnRefresh = container.querySelector(`#${windowId}-fm-refresh`);
+
+      const renderGrid = () => {
+        const files = disk.list();
+        countEl.textContent = `${files.length} document${files.length === 1 ? '' : 's'}`;
+
+        if (files.length === 0) {
+          grid.innerHTML = `
+            <div style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:32px;">
+              No documents created yet.<br>Save files in Notepad to populate.
+            </div>
+          `;
+          return;
+        }
+
+        grid.innerHTML = '';
+        files.forEach((name) => {
+          const card = document.createElement('div');
+          card.className = 'fm-card';
+          card.innerHTML = `
+            <svg class="fm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            <div class="fm-name">${name}</div>
+            <div class="fm-actions">
+              <button type="button" class="fm-btn btn-view" title="View">View</button>
+              <button type="button" class="fm-btn btn-delete" title="Delete">Delete</button>
+            </div>
+          `;
+
+          card.querySelector('.btn-view').addEventListener('click', () => {
+            sound.playClick();
+            const text = disk.read(name) || '';
+            alert(`Document: ${name}\n\n${text}`);
+          });
+
+          card.querySelector('.btn-delete').addEventListener('click', () => {
+            if (confirm(`Delete "${name}"?`)) {
+              disk.remove(name);
+              sound.playClose();
+              renderGrid();
             }
-            update();
+          });
+
+          grid.appendChild(card);
         });
-    });
-}
+      };
 
-// ========== FILE MANAGER ==========
-function fmRefresh(winId) {
-    const grid = document.getElementById('fm-grid-' + winId);
-    const count = document.getElementById('fm-count-' + winId);
-    if (!grid) return;
-    const files = FileSystem.list();
-    if (count) count.textContent = files.length + ' file' + (files.length !== 1 ? 's' : '');
-    
-    if (files.length === 0) {
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#999;padding:40px;">No files yet.<br>Create some in Notepad!</div>';
-        return;
+      btnRefresh.addEventListener('click', () => {
+        sound.playClick();
+        renderGrid();
+      });
+
+      renderGrid();
     }
-    
-    grid.innerHTML = '';
-    files.forEach(function(name) {
-        const item = document.createElement('div');
-        item.className = 'fm-item';
-        item.innerHTML = '<div class="fm-icon">📄</div><div class="fm-name">' + name + '</div><div class="fm-actions"><button class="fm-action-btn" onclick="fmView(\'' + winId + '\',\'' + name + '\')">👁️</button><button class="fm-action-btn" onclick="fmDelete(\'' + winId + '\',\'' + name + '\')">🗑️</button></div>';
-        grid.appendChild(item);
-    });
-}
 
-function fmView(winId, name) {
-    playClick();
-    const content = FileSystem.files[name] || '';
-    alert('📄 ' + name + '\n\n' + content.substring(0, 500) + (content.length > 500 ? '...' : ''));
-}
+    // --- APP: SNAKE GAME ---
+    static mountSnake(windowId, container, registerCleanup) {
+      container.innerHTML = `
+        <div class="snake-layout">
+          <div class="snake-header">Score: <span id="${windowId}-score">0</span></div>
+          <canvas id="${windowId}-canvas" class="snake-canvas" width="340" height="340" tabindex="0"></canvas>
+          <button type="button" class="btn btn-primary" id="${windowId}-restart">Start / Restart Game</button>
+        </div>
+      `;
 
-function fmDelete(winId, name) {
-    if (confirm('Delete "' + name + '"?')) {
-        FileSystem.delete(name);
-        fmRefresh(winId);
-        playClose();
-    }
-}
+      const canvas = container.querySelector(`#${windowId}-canvas`);
+      const scoreEl = container.querySelector(`#${windowId}-score`);
+      const btnRestart = container.querySelector(`#${windowId}-restart`);
+      const ctx = canvas.getContext('2d');
 
-// ========== SNAKE GAME ==========
-const snakeGames = {};
+      const GRID_SIZE = 17;
+      const TILE_COUNT = canvas.width / GRID_SIZE;
 
-function initSnake(winId) {
-    const canvas = document.getElementById('snake-' + winId);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const scoreEl = document.getElementById('snake-score-' + winId);
-    
-    const gridSize = 20;
-    const tileCount = canvas.width / gridSize;
-    
-    let snake = [{x: 10, y: 10}];
-    let food = {x: 15, y: 15};
-    let dx = 0;
-    let dy = 0;
-    let score = 0;
-    let gameOver = false;
-    let interval = null;
-    
-    if (snakeGames[winId]) clearInterval(snakeGames[winId]);
-    
-    function draw() {
-        ctx.fillStyle = '#fffef7';
+      let snake = [{ x: 10, y: 10 }];
+      let food = { x: 5, y: 5 };
+      let vx = 1;
+      let vy = 0;
+      let score = 0;
+      let isDead = false;
+      let gameInterval = null;
+
+      const draw = () => {
+        ctx.fillStyle = '#f8fafc';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = '#f5b7b1';
+
+        // Draw Food
+        ctx.fillStyle = '#14b8a6';
         ctx.beginPath();
-        ctx.arc((food.x * gridSize) + gridSize/2, (food.y * gridSize) + gridSize/2, gridSize/2 - 2, 0, Math.PI*2);
+        ctx.arc(
+          food.x * GRID_SIZE + GRID_SIZE / 2,
+          food.y * GRID_SIZE + GRID_SIZE / 2,
+          GRID_SIZE / 2 - 2,
+          0,
+          Math.PI * 2
+        );
         ctx.fill();
-        
-        snake.forEach(function(seg, i) {
-            ctx.fillStyle = i === 0 ? '#abebc6' : '#8bd3dd';
-            ctx.fillRect(seg.x * gridSize + 1, seg.y * gridSize + 1, gridSize - 2, gridSize - 2);
-            ctx.strokeStyle = '#2d2d2d';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(seg.x * gridSize + 1, seg.y * gridSize + 1, gridSize - 2, gridSize - 2);
+
+        // Draw Snake
+        snake.forEach((seg, idx) => {
+          ctx.fillStyle = idx === 0 ? '#2563eb' : '#3b82f6';
+          ctx.fillRect(seg.x * GRID_SIZE + 1, seg.y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
         });
-        
-        if (gameOver) {
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#2d2d2d';
-            ctx.font = 'bold 24px Baloo 2';
-            ctx.textAlign = 'center';
-            ctx.fillText('Game Over!', canvas.width/2, canvas.height/2);
-            ctx.font = '16px Patrick Hand';
-            ctx.fillText('Score: ' + score, canvas.width/2, canvas.height/2 + 30);
+
+        if (isDead) {
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '600 20px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 8);
+          ctx.font = '400 14px Inter, sans-serif';
+          ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 18);
         }
-    }
-    
-    function update() {
-        if (gameOver) return;
-        const head = {x: snake[0].x + dx, y: snake[0].y + dy};
-        
-        if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
-            gameOver = true; playError(); draw(); return;
+      };
+
+      const step = () => {
+        if (isDead) return;
+
+        const head = { x: snake[0].x + vx, y: snake[0].y + vy };
+
+        // Wall collisions
+        if (head.x < 0 || head.x >= TILE_COUNT || head.y < 0 || head.y >= TILE_COUNT) {
+          endGame();
+          return;
         }
-        
-        for (let i = 0; i < snake.length; i++) {
-            if (snake[i].x === head.x && snake[i].y === head.y) {
-                gameOver = true; playError(); draw(); return;
-            }
+
+        // Self collisions
+        for (let i = 0; i < snake.length; i += 1) {
+          if (snake[i].x === head.x && snake[i].y === head.y) {
+            endGame();
+            return;
+          }
         }
-        
+
         snake.unshift(head);
-        
+
+        // Food consumption
         if (head.x === food.x && head.y === food.y) {
-            score += 10;
-            if (scoreEl) scoreEl.textContent = score;
-            playPop();
-            food = {x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount)};
+          score += 10;
+          scoreEl.textContent = String(score);
+          sound.playSuccess();
+          food = {
+            x: Math.floor(Math.random() * TILE_COUNT),
+            y: Math.floor(Math.random() * TILE_COUNT)
+          };
         } else {
-            snake.pop();
+          snake.pop();
         }
-        
+
         draw();
-    }
-    
-    function keyHandler(e) {
-        if (gameOver) return;
-        switch(e.key) {
-            case 'ArrowUp': if (dy === 0) { dx = 0; dy = -1; } break;
-            case 'ArrowDown': if (dy === 0) { dx = 0; dy = 1; } break;
-            case 'ArrowLeft': if (dx === 0) { dx = -1; dy = 0; } break;
-            case 'ArrowRight': if (dx === 0) { dx = 1; dy = 0; } break;
+      };
+
+      const endGame = () => {
+        isDead = true;
+        if (gameInterval) clearInterval(gameInterval);
+        sound.playError();
+        draw();
+      };
+
+      const onKeyDown = (e) => {
+        if (isDead) return;
+        if (['ArrowUp', 'KeyW'].includes(e.code) && vy === 0) {
+          vx = 0; vy = -1; e.preventDefault();
+        } else if (['ArrowDown', 'KeyS'].includes(e.code) && vy === 0) {
+          vx = 0; vy = 1; e.preventDefault();
+        } else if (['ArrowLeft', 'KeyA'].includes(e.code) && vx === 0) {
+          vx = -1; vy = 0; e.preventDefault();
+        } else if (['ArrowRight', 'KeyD'].includes(e.code) && vx === 0) {
+          vx = 1; vy = 0; e.preventDefault();
         }
+      };
+
+      const start = () => {
+        if (gameInterval) clearInterval(gameInterval);
+        snake = [{ x: 10, y: 10 }];
+        food = { x: 5, y: 5 };
+        vx = 1;
+        vy = 0;
+        score = 0;
+        isDead = false;
+        scoreEl.textContent = '0';
+        canvas.focus();
+        draw();
+        gameInterval = setInterval(step, 110);
+      };
+
+      canvas.addEventListener('keydown', onKeyDown);
+      btnRestart.addEventListener('click', () => {
+        sound.playClick();
+        start();
+      });
+
+      start();
+
+      // Clean up event listeners & intervals on window close to prevent leaks
+      registerCleanup(() => {
+        if (gameInterval) clearInterval(gameInterval);
+        canvas.removeEventListener('keydown', onKeyDown);
+      });
     }
-    
-    canvas.tabIndex = 0;
-    canvas.focus();
-    canvas.addEventListener('keydown', keyHandler);
-    
-    dx = 1; dy = 0;
-    interval = setInterval(update, 120);
-    snakeGames[winId] = interval;
-    draw();
-}
+
+    // --- APP: BROWSER ---
+    static mountBrowser(windowId, container) {
+      container.innerHTML = `
+        <div class="browser-layout">
+          <div class="browser-bar">
+            <button type="button" class="tool-btn" id="${windowId}-home">Home</button>
+            <input type="text" class="browser-url-input" id="${windowId}-url" placeholder="Search Google or enter a website address..." />
+            <button type="button" class="btn btn-primary" id="${windowId}-go">Go</button>
+          </div>
+          <div class="browser-view">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+            <span>Type a URL above to browse the web</span>
+          </div>
+        </div>
+      `;
+
+      const input = container.querySelector(`#${windowId}-url`);
+      const btnGo = container.querySelector(`#${windowId}-go`);
+      const btnHome = container.querySelector(`#${windowId}-home`);
+
+      const navigate = () => {
+        const query = input.value.trim();
+        if (!query) return;
+
+        let target = query;
+        if (!/^https?:\/\//i.test(query)) {
+          if (query.includes('.') && !query.includes(' ')) {
+            target = `https://${query}`;
+          } else {
+            target = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+          }
+        }
+        window.open(target, '_blank', 'noopener,noreferrer');
+      };
+
+      btnGo.addEventListener('click', navigate);
+      btnHome.addEventListener('click', () => {
+        window.open('https://google.com', '_blank', 'noopener,noreferrer');
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') navigate();
+      });
+    }
+
+    // --- APP: SETTINGS ---
+    static mountSettings(windowId, container) {
+      container.innerHTML = `
+        <div class="settings-layout">
+          <div>
+            <div class="settings-section-title">Preferences</div>
+            <div class="settings-row" style="margin-top: 8px;">
+              <span class="settings-label">System Sound Effects</span>
+              <input type="checkbox" class="settings-toggle" id="${windowId}-sound" ${sound.enabled ? 'checked' : ''} />
+            </div>
+          </div>
+
+          <div>
+            <div class="settings-section-title">Appearance</div>
+            <div class="settings-row" style="margin-top: 8px;">
+              <span class="settings-label">Color Theme</span>
+              <select class="tool-select" id="${windowId}-theme">
+                <option value="light">Mixed Light (Default)</option>
+                <option value="dark">Dark Theme</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div class="settings-section-title">Desktop Pattern</div>
+            <div class="wp-swatches">
+              <button type="button" class="wp-swatch" data-wp="dots">Dots</button>
+              <button type="button" class="wp-swatch" data-wp="grid">Grid</button>
+              <button type="button" class="wp-swatch" data-wp="lines">Lines</button>
+              <button type="button" class="wp-swatch" data-wp="crosses">Crosses</button>
+              <button type="button" class="wp-swatch" data-wp="clean">Solid</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const soundCheck = container.querySelector(`#${windowId}-sound`);
+      const themeSelect = container.querySelector(`#${windowId}-theme`);
+
+      themeSelect.value = StorageManager.getLocal(STORAGE_KEYS.THEME, 'light');
+
+      soundCheck.addEventListener('change', (e) => {
+        sound.setEnabled(e.target.checked);
+      });
+
+      themeSelect.addEventListener('change', (e) => {
+        DesktopEnvironment.applyTheme(e.target.value);
+      });
+
+      container.querySelectorAll('.wp-swatch').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          sound.playClick();
+          DesktopEnvironment.applyWallpaper(btn.dataset.wp);
+        });
+      });
+    }
+  }
+
+  // =========================================================================
+  // 7. CALENDAR FLYOUT
+  // =========================================================================
+
+  class CalendarFlyout {
+    constructor() {
+      this.popup = document.getElementById('calendar-popup');
+      this.toggleBtn = document.getElementById('calendar-btn');
+      this.titleEl = document.getElementById('cal-month-year');
+      this.gridEl = document.getElementById('cal-days');
+
+      this.initEvents();
+    }
+
+    initEvents() {
+      this.toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sound.playClick();
+        const isHidden = this.popup.classList.toggle('hidden');
+        this.toggleBtn.setAttribute('aria-expanded', String(!isHidden));
+        if (!isHidden) this.render();
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!this.popup.contains(e.target) && e.target !== this.toggleBtn) {
+          this.popup.classList.add('hidden');
+          this.toggleBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    render() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+
+      this.titleEl.textContent = `${months[month]} ${year}`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const totalDays = new Date(year, month + 1, 0).getDate();
+      const today = now.getDate();
+
+      const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+      let html = daysOfWeek.map((d) => `<div class="cal-day-label">${d}</div>`).join('');
+
+      for (let i = 0; i < firstDay; i += 1) {
+        html += '<div class="cal-cell empty"></div>';
+      }
+
+      for (let day = 1; day <= totalDays; day += 1) {
+        const isToday = day === today;
+        html += `<div class="cal-cell ${isToday ? 'today' : ''}">${day}</div>`;
+      }
+
+      this.gridEl.innerHTML = html;
+    }
+  }
+
+  // =========================================================================
+  // 8. DESKTOP ENVIRONMENT CONTROLLER
+  // =========================================================================
+
+  class DesktopEnvironment {
+    static initialize() {
+      this.desktop = document.getElementById('desktop');
+      this.startMenu = document.getElementById('start-menu');
+      this.startBtn = document.getElementById('start-btn');
+      this.shutdownBtn = document.getElementById('shutdown-btn');
+      this.clockEl = document.getElementById('clock');
+
+      this.loadPreferences();
+      this.initAuth();
+      this.initShortcuts();
+      this.initStartMenu();
+      this.startClock();
+      new CalendarFlyout();
+    }
+
+    static loadPreferences() {
+      const savedTheme = StorageManager.getLocal(STORAGE_KEYS.THEME, 'light');
+      this.applyTheme(savedTheme);
+
+      const savedWallpaper = StorageManager.getLocal(STORAGE_KEYS.WALLPAPER, 'dots');
+      this.applyWallpaper(savedWallpaper);
+    }
+
+    static applyTheme(theme) {
+      this.desktop.setAttribute('data-theme', theme);
+      document.body.setAttribute('data-theme', theme);
+      StorageManager.setLocal(STORAGE_KEYS.THEME, theme);
+    }
+
+    static applyWallpaper(pattern) {
+      this.desktop.setAttribute('data-wallpaper', pattern || 'dots');
+      StorageManager.setLocal(STORAGE_KEYS.WALLPAPER, pattern || 'dots');
+    }
+
+    static closeStartMenu() {
+      if (this.startMenu) {
+        this.startMenu.classList.add('hidden');
+        this.startBtn.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    static initAuth() {
+      const loginOverlay = document.getElementById('login-screen');
+      const welcomeOverlay = document.getElementById('welcome-screen');
+      const loginForm = document.getElementById('login-form');
+      const passwordInput = document.getElementById('login-password');
+      const enterBtn = document.getElementById('enter-btn');
+
+      // Check for active session
+      if (StorageManager.getSession(STORAGE_KEYS.SESSION) === 'true') {
+        loginOverlay.style.display = 'none';
+        welcomeOverlay.classList.remove('hidden');
+      }
+
+      loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (passwordInput.value === AUTH_CONFIG.PASSWORD) {
+          sound.playOpen();
+          StorageManager.setSession(STORAGE_KEYS.SESSION, 'true');
+          loginOverlay.classList.add('fade-out');
+
+          setTimeout(() => {
+            loginOverlay.style.display = 'none';
+            welcomeOverlay.classList.remove('hidden');
+          }, 400);
+        } else {
+          sound.playError();
+          passwordInput.style.borderColor = 'var(--accent-danger)';
+          passwordInput.value = '';
+          passwordInput.placeholder = 'Invalid password';
+
+          setTimeout(() => {
+            passwordInput.style.borderColor = '';
+            passwordInput.placeholder = 'Enter password';
+          }, 1200);
+        }
+      });
+
+      enterBtn.addEventListener('click', () => {
+        sound.playOpen();
+        welcomeOverlay.classList.add('fade-out');
+
+        setTimeout(() => {
+          welcomeOverlay.style.display = 'none';
+          this.desktop.classList.remove('hidden');
+        }, 400);
+      });
+    }
+
+    static initShortcuts() {
+      const grid = document.querySelector('.desktop-grid');
+      if (!grid) return;
+
+      grid.addEventListener('click', (e) => {
+        const item = e.target.closest('.desktop-shortcut');
+        if (!item) return;
+
+        sound.playClick();
+        grid.querySelectorAll('.desktop-shortcut').forEach((el) => el.classList.remove('selected'));
+        item.classList.add('selected');
+      });
+
+      grid.addEventListener('dblclick', (e) => {
+        const item = e.target.closest('.desktop-shortcut');
+        if (!item) return;
+        windowManager.openWindow(item.dataset.app);
+      });
+
+      grid.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const item = e.target.closest('.desktop-shortcut');
+          if (item) windowManager.openWindow(item.dataset.app);
+        }
+      });
+    }
+
+    static initStartMenu() {
+      this.startBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sound.playClick();
+        const isHidden = this.startMenu.classList.toggle('hidden');
+        this.startBtn.setAttribute('aria-expanded', String(!isHidden));
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!this.startMenu.contains(e.target) && e.target !== this.startBtn) {
+          this.closeStartMenu();
+        }
+      });
+
+      this.startMenu.querySelectorAll('.start-menu-item[data-app]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          windowManager.openWindow(btn.dataset.app);
+        });
+      });
+
+      this.shutdownBtn.addEventListener('click', () => {
+        sound.playClose();
+        StorageManager.removeSession(STORAGE_KEYS.SESSION);
+        document.body.innerHTML = `
+          <div style="height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:#0f172a;color:#f8fafc;">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+              <line x1="12" y1="2" x2="12" y2="12" />
+            </svg>
+            <h2 style="font-weight:600;font-size:1.25rem;">Doodle OS Shut Down</h2>
+            <p style="color:#94a3b8;font-size:0.875rem;">You can safely close this browser tab.</p>
+          </div>
+        `;
+      });
+    }
+
+    static startClock() {
+      const tick = () => {
+        const now = new Date();
+        this.clockEl.textContent = now.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+      };
+      setInterval(tick, 1000);
+      tick();
+    }
+  }
+
+  // =========================================================================
+  // 9. DOM INITIALIZATION
+  // =========================================================================
+  document.addEventListener('DOMContentLoaded', () => {
+    DesktopEnvironment.initialize();
+  });
+})();
