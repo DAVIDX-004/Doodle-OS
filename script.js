@@ -1,1387 +1,671 @@
-/**
- * @fileoverview Doodle OS — Core Desktop Simulation Architecture
- * A modern, modular desktop environment built with pure vanilla ES6+.
- *
- * Subsystems:
- * - StorageManager: Safe storage access with quota error handling.
- * - SoundSystem: Synthesizes system audio using the Web Audio API.
- * - VirtualDisk: File store persisted via localStorage.
- * - WindowManager: Dynamic window creation, dragging, layering, and tab sync.
- * - AppControllers: Native application logic (Notepad, Terminal, Calculator, etc.).
- * - DesktopEnvironment: Shell orchestration, start menu, calendar, and auth flow.
- */
 
-'use strict';
 
-(() => {
-  // =========================================================================
-  // 1. CONFIGURATION & CONSTANTS
-  // =========================================================================
 
-  const STORAGE_KEYS = Object.freeze({
-    SOUND: 'doodleOS_sound',
-    FILES: 'doodleOS_files',
-    WALLPAPER: 'doodleOS_wallpaper',
-    THEME: 'doodleOS_theme',
-    SESSION: 'doodleOS_session'
-  });
+let zIndex = 100;
+let windowCount = 0;
+let activeWindows = {};
 
-  const AUTH_CONFIG = Object.freeze({
-    PASSWORD: 'doodle',
-    USER_NAME: 'Muhammad Dawood',
-    USER_ROLE: 'Administrator'
-  });
 
-  const APP_CONFIGS = Object.freeze({
-    notepad: {
-      title: 'Notepad',
-      width: 560,
-      height: 400
-    },
-    terminal: {
-      title: 'Terminal',
-      width: 540,
-      height: 340
-    },
-    calculator: {
-      title: 'Calculator',
-      width: 320,
-      height: 420
-    },
-    filemanager: {
-      title: 'File Manager',
-      width: 520,
-      height: 380
-    },
-    snake: {
-      title: 'Snake Game',
-      width: 400,
-      height: 480
-    },
-    browser: {
-      title: 'Web Browser',
-      width: 620,
-      height: 420
-    },
-    settings: {
-      title: 'Settings',
-      width: 440,
-      height: 380
-    }
-  });
+if (sessionStorage.getItem('doodle_logged_in') === 'yes') {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('welcome-screen').classList.remove('hidden');
+}
 
-  // =========================================================================
-  // 2. STORAGE MANAGER (Resilient I/O)
-  // =========================================================================
 
-  /**
-   * Safe storage access wrapper that guards against quota and privacy mode exceptions.
-   */
-  class StorageManager {
-    /**
-     * @param {string} key
-     * @param {string|null} fallback
-     * @returns {string|null}
-     */
-    static getLocal(key, fallback = null) {
-      try {
-        const item = localStorage.getItem(key);
-        return item !== null ? item : fallback;
-      } catch (err) {
-        console.warn(`[StorageManager] Read error on key "${key}":`, err);
-        return fallback;
-      }
-    }
+function doLogin() {
+  let pw = document.getElementById('login-password').value;
+  if (pw === 'doodle') {
+    sessionStorage.setItem('doodle_logged_in', 'yes');
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('welcome-screen').classList.remove('hidden');
+  } else {
+    alert('Wrong password! Try "doodle"');
+    document.getElementById('login-password').value = '';
+  }
+}
 
-    /**
-     * @param {string} key
-     * @param {string} value
-     */
-    static setLocal(key, value) {
-      try {
-        localStorage.setItem(key, value);
-      } catch (err) {
-        console.warn(`[StorageManager] Write error on key "${key}":`, err);
-      }
-    }
 
-    /**
-     * @param {string} key
-     * @param {string|null} fallback
-     * @returns {string|null}
-     */
-    static getSession(key, fallback = null) {
-      try {
-        const item = sessionStorage.getItem(key);
-        return item !== null ? item : fallback;
-      } catch (err) {
-        console.warn(`[StorageManager] Session read error on key "${key}":`, err);
-        return fallback;
-      }
-    }
+function enterDesktop() {
+  document.getElementById('welcome-screen').classList.add('hidden');
+  document.getElementById('desktop').classList.remove('hidden');
+  startClock();
+  renderCalendar();
+}
 
-    /**
-     * @param {string} key
-     * @param {string} value
-     */
-    static setSession(key, value) {
-      try {
-        sessionStorage.setItem(key, value);
-      } catch (err) {
-        console.warn(`[StorageManager] Session write error on key "${key}":`, err);
-      }
-    }
 
-    /**
-     * @param {string} key
-     */
-    static removeSession(key) {
-      try {
-        sessionStorage.removeItem(key);
-      } catch (err) {
-        console.warn(`[StorageManager] Session remove error on key "${key}":`, err);
-      }
-    }
+function startClock() {
+  function tick() {
+    let now = new Date();
+    let h = now.getHours();
+    let m = now.getMinutes();
+    let ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    h = h ? h : 12;
+    m = m < 10 ? '0' + m : m;
+    document.getElementById('clock').textContent = h + ':' + m + ' ' + ampm;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+
+function toggleStartMenu() {
+  let menu = document.getElementById('start-menu');
+  if (menu.classList.contains('hidden')) {
+    menu.classList.remove('hidden');
+  } else {
+    menu.classList.add('hidden');
+  }
+}
+
+
+function toggleCalendar() {
+  let cal = document.getElementById('calendar-popup');
+  if (cal.classList.contains('hidden')) {
+    cal.classList.remove('hidden');
+    renderCalendar();
+  } else {
+    cal.classList.add('hidden');
+  }
+}
+
+function renderCalendar() {
+  let now = new Date();
+  let year = now.getFullYear();
+  let month = now.getMonth();
+  let day = now.getDate();
+
+  let months = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  document.getElementById('cal-header').textContent = months[month] + ' ' + year;
+
+  let firstDay = new Date(year, month, 1).getDay();
+  let daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let html = '';
+  let weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  for (let i = 0; i < weekdays.length; i++) {
+    html += '<div class="cal-cell header">' + weekdays[i] + '</div>';
   }
 
-  // =========================================================================
-  // 3. SOUND SYNTHESIZER (Pure Web Audio)
-  // =========================================================================
-
-  /**
-   * Lightweight audio synthesizer creating subtle UI feedback tones without external files.
-   */
-  class SoundSystem {
-    constructor() {
-      /** @type {AudioContext|null} */
-      this.ctx = null;
-      this.enabled = StorageManager.getLocal(STORAGE_KEYS.SOUND, 'true') !== 'false';
-    }
-
-    /**
-     * Lazy-initializes AudioContext on the first genuine user gesture.
-     */
-    initContext() {
-      if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
-        const AudioClass = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioClass();
-      }
-      if (this.ctx && this.ctx.state === 'suspended') {
-        this.ctx.resume();
-      }
-    }
-
-    /**
-     * Generates a single envelope-modulated tone.
-     * @param {number} freq - Pitch frequency in Hz
-     * @param {OscillatorType} type - Waveform type
-     * @param {number} duration - Tone duration in seconds
-     * @param {number} volume - Master gain peak
-     */
-    playTone(freq, type = 'sine', duration = 0.08, volume = 0.05) {
-      if (!this.enabled) return;
-      this.initContext();
-      if (!this.ctx) return;
-
-      try {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        gain.gain.setValueAtTime(volume, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
-
-        osc.start();
-        osc.stop(this.ctx.currentTime + duration);
-      } catch (err) {
-        console.warn('[SoundSystem] Playback error:', err);
-      }
-    }
-
-    playClick() {
-      this.playTone(700, 'triangle', 0.04, 0.03);
-    }
-
-    playOpen() {
-      this.playTone(480, 'sine', 0.08, 0.05);
-      setTimeout(() => this.playTone(680, 'sine', 0.1, 0.05), 50);
-    }
-
-    playClose() {
-      this.playTone(560, 'sine', 0.08, 0.05);
-      setTimeout(() => this.playTone(380, 'sine', 0.1, 0.04), 50);
-    }
-
-    playSuccess() {
-      this.playTone(520, 'sine', 0.06, 0.06);
-      setTimeout(() => this.playTone(780, 'sine', 0.1, 0.06), 60);
-    }
-
-    playError() {
-      this.playTone(220, 'sawtooth', 0.14, 0.08);
-    }
-
-    /**
-     * @param {boolean} isEnabled
-     */
-    setEnabled(isEnabled) {
-      this.enabled = isEnabled;
-      StorageManager.setLocal(STORAGE_KEYS.SOUND, String(isEnabled));
-    }
+  for (let i = 0; i < firstDay; i++) {
+    html += '<div class="cal-cell"></div>';
   }
 
-  const sound = new SoundSystem();
-
-  // =========================================================================
-  // 4. VIRTUAL FILE SYSTEM
-  // =========================================================================
-
-  /**
-   * Key-value file storage backed by localStorage.
-   */
-  class VirtualDisk {
-    constructor() {
-      /** @type {Record<string, string>} */
-      this.files = {};
-      this.load();
-    }
-
-    load() {
-      const data = StorageManager.getLocal(STORAGE_KEYS.FILES);
-      if (data) {
-        try {
-          this.files = JSON.parse(data);
-        } catch (e) {
-          console.error('[VirtualDisk] Parse failure:', e);
-          this.files = {};
-        }
-      }
-    }
-
-    save() {
-      StorageManager.setLocal(STORAGE_KEYS.FILES, JSON.stringify(this.files));
-    }
-
-    /**
-     * @param {string} filename
-     * @param {string} content
-     */
-    write(filename, content) {
-      this.files[filename] = content;
-      this.save();
-    }
-
-    /**
-     * @param {string} filename
-     * @returns {string|null}
-     */
-    read(filename) {
-      return Object.prototype.hasOwnProperty.call(this.files, filename) ? this.files[filename] : null;
-    }
-
-    /**
-     * @param {string} filename
-     */
-    remove(filename) {
-      delete this.files[filename];
-      this.save();
-    }
-
-    /**
-     * @returns {string[]}
-     */
-    list() {
-      return Object.keys(this.files);
-    }
+  for (let d = 1; d <= daysInMonth; d++) {
+    let cls = 'cal-cell';
+    if (d === day) cls += ' today';
+    html += '<div class="' + cls + '">' + d + '</div>';
   }
 
-  const disk = new VirtualDisk();
+  document.getElementById('cal-grid').innerHTML = html;
+}
 
-  // =========================================================================
-  // 5. WINDOW MANAGER
-  // =========================================================================
 
-  /**
-   * Manages desktop window spawning, dragging, stacking, and taskbar synchronization.
-   */
-  class WindowManager {
-    constructor() {
-      this.container = document.getElementById('windows-container');
-      this.taskbarApps = document.getElementById('taskbar-apps');
-      this.windowCount = 0;
-      this.topZIndex = 100;
+function openApp(appName) {
+  windowCount++;
+  let winId = 'window-' + windowCount;
+  zIndex++;
 
-      /** @type {Map<string, Function>} Cleanup callbacks registered per window */
-      this.cleanups = new Map();
+  let titles = {
+    notepad: 'Notepad',
+    terminal: 'Terminal',
+    calculator: 'Calculator',
+    files: 'File Manager',
+    snake: 'Snake Game',
+    browser: 'Browser',
+    settings: 'Settings'
+  };
 
-      this.initWindowControls();
+  let w = 500, h = 350;
+  if (appName === 'calculator') { w = 260; h = 380; }
+  if (appName === 'snake') { w = 370; h = 450; }
+  if (appName === 'settings') { w = 350; h = 300; }
+  if (appName === 'browser') { w = 550; h = 350; }
+
+  let offset = (windowCount % 6) * 25;
+  let left = Math.min(window.innerWidth - w - 20, 100 + offset);
+  let top = Math.min(window.innerHeight - h - 60, 40 + offset);
+
+  let win = document.createElement('div');
+  win.className = 'window';
+  win.id = winId;
+  win.style.width = w + 'px';
+  win.style.height = h + 'px';
+  win.style.left = left + 'px';
+  win.style.top = top + 'px';
+  win.style.zIndex = zIndex;
+
+   win.innerHTML = ''
+    + '<div class="window-header" onmousedown="startDrag(event, \'' + winId + '\')">'
+    + '  <span class="window-title">' + titles[appName] + '</span>'
+    + '  <div class="window-controls">'
+    + '    <button class="btn-minimize" onclick="minimizeWindow(\'' + winId + '\')" title="Minimize">−</button>'
+    + '    <button class="btn-maximize" onclick="maximizeWindow(\'' + winId + '\')" title="Maximize">□</button>'
+    + '    <button class="btn-close" onclick="closeWindow(\'' + winId + '\')" title="Close">×</button>'
+    + '  </div>'
+    + '</div>'
+    + '<div class="window-body" id="' + winId + '-body"></div>';
+
+  document.getElementById('windows-container').appendChild(win);
+
+  
+  let tb = document.createElement('div');
+  tb.className = 'taskbar-app active';
+  tb.id = 'tb-' + winId;
+  tb.textContent = titles[appName];
+  tb.onclick = function() {
+    let w = document.getElementById(winId);
+    if (w.style.display === 'none') {
+      w.style.display = 'flex';
+      tb.classList.add('active');
+      bringToFront(winId);
+    } else if (tb.classList.contains('active')) {
+      minimizeWindow(winId);
+    } else {
+      bringToFront(winId);
     }
+  };
+  document.getElementById('taskbar-apps').appendChild(tb);
 
-    /**
-     * Event delegation for window header control buttons.
-     */
-    initWindowControls() {
-      this.container.addEventListener('click', (e) => {
-        const btn = e.target.closest('.window-btn');
-        if (!btn) return;
+  activeWindows[winId] = { app: appName, maximized: false };
 
-        const action = btn.dataset.action;
-        const winId = btn.dataset.win;
+  
+  win.addEventListener('mousedown', function() {
+    bringToFront(winId);
+  });
 
-        if (action === 'close') this.closeWindow(winId);
-        if (action === 'minimize') this.minimizeWindow(winId);
-        if (action === 'maximize') this.maximizeWindow(winId);
-      });
+  
+  let body = document.getElementById(winId + '-body');
+  if (appName === 'notepad') mountNotepad(body, winId);
+  if (appName === 'terminal') mountTerminal(body, winId);
+  if (appName === 'calculator') mountCalculator(body, winId);
+  if (appName === 'files') mountFiles(body, winId);
+  if (appName === 'snake') mountSnake(body, winId);
+  if (appName === 'browser') mountBrowser(body, winId);
+  if (appName === 'settings') mountSettings(body, winId);
+
+  
+  document.getElementById('start-menu').classList.add('hidden');
+}
+
+function bringToFront(winId) {
+  zIndex++;
+  document.getElementById(winId).style.zIndex = zIndex;
+  document.querySelectorAll('.taskbar-app').forEach(function(b) {
+    b.classList.remove('active');
+  });
+  let tb = document.getElementById('tb-' + winId);
+  if (tb) tb.classList.add('active');
+}
+
+function closeWindow(winId) {
+  let win = document.getElementById(winId);
+  if (win) win.remove();
+  let tb = document.getElementById('tb-' + winId);
+  if (tb) tb.remove();
+  delete activeWindows[winId];
+}
+
+function minimizeWindow(winId) {
+  document.getElementById(winId).style.display = 'none';
+  let tb = document.getElementById('tb-' + winId);
+  if (tb) tb.classList.remove('active');
+}
+
+function maximizeWindow(winId) {
+  let win = document.getElementById(winId);
+  let data = activeWindows[winId];
+  if (!data.maximized) {
+    data.prevWidth = win.style.width;
+    data.prevHeight = win.style.height;
+    data.prevLeft = win.style.left;
+    data.prevTop = win.style.top;
+    win.style.width = '100vw';
+    win.style.height = 'calc(100vh - 42px)';
+    win.style.left = '0px';
+    win.style.top = '0px';
+    data.maximized = true;
+  } else {
+    win.style.width = data.prevWidth;
+    win.style.height = data.prevHeight;
+    win.style.left = data.prevLeft;
+    win.style.top = data.prevTop;
+    data.maximized = false;
+  }
+}
+
+
+let dragWin = null;
+let dragOffX = 0;
+let dragOffY = 0;
+
+function startDrag(e, winId) {
+  if (e.target.closest('.window-controls')) return;
+  let win = document.getElementById(winId);
+  if (activeWindows[winId] && activeWindows[winId].maximized) return;
+  dragWin = win;
+  dragOffX = e.clientX - win.offsetLeft;
+  dragOffY = e.clientY - win.offsetTop;
+  bringToFront(winId);
+}
+
+document.addEventListener('mousemove', function(e) {
+  if (!dragWin) return;
+  dragWin.style.left = (e.clientX - dragOffX) + 'px';
+  dragWin.style.top = (e.clientY - dragOffY) + 'px';
+});
+
+document.addEventListener('mouseup', function() {
+  dragWin = null;
+});
+
+
+
+function mountNotepad(body, winId) {
+  body.innerHTML = ''
+    + '<div class="notepad-bar">'
+    + '  <button onclick="notepadNew(\'' + winId + '\')">New</button>'
+    + '  <button onclick="notepadSave(\'' + winId + '\')">Save</button>'
+    + '  <select id="' + winId + '-files" onchange="notepadOpen(\'' + winId + '\')">'
+    + '    <option value="">Open...</option>'
+    + '  </select>'
+    + '</div>'
+    + '<textarea class="notepad-area" id="' + winId + '-text" placeholder="Type here..."></textarea>';
+
+  notepadRefreshFiles(winId);
+}
+
+function notepadNew(winId) {
+  document.getElementById(winId + '-text').value = '';
+}
+
+function notepadSave(winId) {
+  let name = prompt('File name:', 'note.txt');
+  if (!name) return;
+  let text = document.getElementById(winId + '-text').value;
+  let files = JSON.parse(localStorage.getItem('doodle_files') || '{}');
+  files[name] = text;
+  localStorage.setItem('doodle_files', JSON.stringify(files));
+  notepadRefreshFiles(winId);
+  alert('Saved!');
+}
+
+function notepadOpen(winId) {
+  let sel = document.getElementById(winId + '-files');
+  let name = sel.value;
+  if (!name) return;
+  let files = JSON.parse(localStorage.getItem('doodle_files') || '{}');
+  document.getElementById(winId + '-text').value = files[name] || '';
+}
+
+function notepadRefreshFiles(winId) {
+  let sel = document.getElementById(winId + '-files');
+  let files = JSON.parse(localStorage.getItem('doodle_files') || '{}');
+  let html = '<option value="">Open...</option>';
+  for (let name in files) {
+    html += '<option value="' + name + '">' + name + '</option>';
+  }
+  sel.innerHTML = html;
+}
+
+function mountTerminal(body, winId) {
+  body.innerHTML = '<div class="terminal-box" id="' + winId + '-term"></div>';
+  let term = document.getElementById(winId + '-term');
+  term.innerHTML = '<div class="terminal-line">Doodle OS Shell v1.0</div>';
+  term.innerHTML += '<div class="terminal-line">Type "help" for commands.</div>';
+  addPrompt(term, winId);
+}
+
+function addPrompt(term, winId) {
+  let line = document.createElement('div');
+  line.className = 'terminal-input-line';
+  line.innerHTML = '<span class="terminal-prompt">$</span>'
+    + '<input type="text" class="terminal-input" id="' + winId + '-input">';
+  term.appendChild(line);
+  term.scrollTop = term.scrollHeight;
+
+  let inp = document.getElementById(winId + '-input');
+  inp.focus();
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      let cmd = inp.value.trim();
+      inp.disabled = true;
+      runCommand(term, winId, cmd);
     }
+  });
+}
 
-    /**
-     * Open an application window.
-     * @param {string} appKey
-     */
-    openWindow(appKey) {
-      const config = APP_CONFIGS[appKey];
-      if (!config) return;
+function runCommand(term, winId, cmd) {
+  let out = '';
+  let lower = cmd.toLowerCase();
 
-      this.windowCount += 1;
-      const windowId = `win-${this.windowCount}`;
-      this.topZIndex += 1;
+  if (lower === 'help') {
+    out = 'Commands: help, date, clear, echo [text], whoami, reboot, ls, cat [file]';
+  } else if (lower === 'date') {
+    out = new Date().toString();
+  } else if (lower === 'clear') {
+    term.innerHTML = '';
+    addPrompt(term, winId);
+    return;
+  } else if (lower === 'whoami') {
+    out = 'user (admin)';
+  } else if (lower === 'reboot') {
+    out = 'Rebooting...';
+    setTimeout(function() { location.reload(); }, 500);
+  } else if (lower === 'ls') {
+    let files = JSON.parse(localStorage.getItem('doodle_files') || '{}');
+    let names = Object.keys(files);
+    out = names.length ? names.join('  ') : 'No files.';
+  } else if (lower.indexOf('cat ') === 0) {
+    let name = cmd.slice(4).trim();
+    let files = JSON.parse(localStorage.getItem('doodle_files') || '{}');
+    out = files.hasOwnProperty(name) ? files[name] : 'File not found: ' + name;
+  } else if (lower.indexOf('echo ') === 0) {
+    out = cmd.slice(5);
+  } else if (cmd === '') {
+    out = '';
+  } else {
+    out = 'Unknown command: ' + cmd;
+  }
 
-      // 1. Build window shell
-      const win = document.createElement('div');
-      win.className = 'window';
-      win.id = windowId;
-      win.dataset.app = appKey;
-      win.style.width = `${config.width}px`;
-      win.style.height = `${config.height}px`;
+  if (out) {
+    let div = document.createElement('div');
+    div.className = 'terminal-line';
+    div.textContent = out;
+    term.appendChild(div);
+  }
+  addPrompt(term, winId);
+}
 
-      const offset = (this.windowCount % 8) * 26;
-      win.style.left = `${Math.min(window.innerWidth - config.width - 24, 80 + offset)}px`;
-      win.style.top = `${Math.min(window.innerHeight - config.height - 70, 50 + offset)}px`;
-      win.style.zIndex = String(this.topZIndex);
+function mountCalculator(body, winId) {
+  body.innerHTML = ''
+    + '<div class="calc-screen" id="' + winId + '-screen">0</div>'
+    + '<div class="calc-buttons" id="' + winId + '-btns">'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'C\')">C</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'/\')">/</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'*\')">*</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'⌫\')">⌫</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'7\')">7</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'8\')">8</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'9\')">9</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'-\')">-</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'4\')">4</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'5\')">5</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'6\')">6</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'+\')">+</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'1\')">1</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'2\')">2</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'3\')">3</button>'
+    + '  <button class="equals" onclick="calcInput(\'' + winId + '\', \'=\')">=</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'0\')" style="width:48%">0</button>'
+    + '  <button onclick="calcInput(\'' + winId + '\', \'.\')">.</button>'
+    + '</div>';
 
-      win.innerHTML = `
-        <div class="window-header" data-win="${windowId}">
-          <span class="window-title">${config.title}</span>
-          <div class="window-controls">
-            <button type="button" class="window-btn btn-minimize" data-action="minimize" data-win="${windowId}" aria-label="Minimize"></button>
-            <button type="button" class="window-btn btn-maximize" data-action="maximize" data-win="${windowId}" aria-label="Maximize"></button>
-            <button type="button" class="window-btn btn-close" data-action="close" data-win="${windowId}" aria-label="Close"></button>
-          </div>
-        </div>
-        <div class="window-body" id="body-${windowId}"></div>
-      `;
+  calcData[winId] = { current: '0', expr: '' };
+}
 
-      this.container.appendChild(win);
+let calcData = {};
 
-      // 2. Bring window to front on mousedown
-      win.addEventListener('mousedown', () => this.bringToFront(win));
+function calcInput(winId, key) {
+  let d = calcData[winId];
+  let screen = document.getElementById(winId + '-screen');
 
-      // 3. Attach dragging handler
-      this.setupDragging(win);
-
-      // 4. Create Taskbar Chip
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'taskbar-chip active';
-      chip.textContent = config.title;
-      chip.dataset.win = windowId;
-      chip.addEventListener('click', () => this.toggleWindow(windowId, chip));
-      this.taskbarApps.appendChild(chip);
-
-      // 5. Mount Application
-      const body = win.querySelector(`#body-${windowId}`);
-      AppRouter.mount(appKey, windowId, body, (cleanupFn) => {
-        if (typeof cleanupFn === 'function') {
-          this.cleanups.set(windowId, cleanupFn);
-        }
-      });
-
-      sound.playOpen();
-      DesktopEnvironment.closeStartMenu();
+  if (key === 'C') {
+    d.current = '0';
+    d.expr = '';
+  } else if (key === '⌫') {
+    d.current = d.current.length > 1 ? d.current.slice(0, -1) : '0';
+  } else if (key === '=') {
+    try {
+      
+      let e = d.expr + d.current;
+      e = e.replace(/×/g, '*').replace(/÷/g, '/');
+      let res = eval(e);
+      d.current = String(res);
+      d.expr = '';
+    } catch (err) {
+      d.current = 'Error';
+      d.expr = '';
     }
-
-    /**
-     * @param {HTMLElement} win
-     */
-    bringToFront(win) {
-      this.topZIndex += 1;
-      win.style.zIndex = String(this.topZIndex);
-
-      const chip = this.taskbarApps.querySelector(`.taskbar-chip[data-win="${win.id}"]`);
-      if (chip) {
-        this.taskbarApps.querySelectorAll('.taskbar-chip').forEach((c) => c.classList.remove('active'));
-        chip.classList.add('active');
-      }
-    }
-
-    /**
-     * @param {string} windowId
-     */
-    closeWindow(windowId) {
-      const win = document.getElementById(windowId);
-      if (!win) return;
-
-      sound.playClose();
-      win.classList.add('window-closing');
-
-      // Trigger app cleanup callbacks (e.g. game loops, key listeners)
-      if (this.cleanups.has(windowId)) {
-        try {
-          this.cleanups.get(windowId)();
-        } catch (e) {
-          console.error('[WindowManager] Cleanup error:', e);
-        }
-        this.cleanups.delete(windowId);
-      }
-
-      setTimeout(() => {
-        win.remove();
-        const chip = this.taskbarApps.querySelector(`.taskbar-chip[data-win="${windowId}"]`);
-        if (chip) chip.remove();
-      }, 150);
-    }
-
-    /**
-     * @param {string} windowId
-     */
-    minimizeWindow(windowId) {
-      const win = document.getElementById(windowId);
-      const chip = this.taskbarApps.querySelector(`.taskbar-chip[data-win="${windowId}"]`);
-      if (win) {
-        win.style.display = 'none';
-        win.classList.add('minimized');
-        if (chip) chip.classList.remove('active');
-      }
-    }
-
-    /**
-     * @param {string} windowId
-     * @param {HTMLElement} chip
-     */
-    toggleWindow(windowId, chip) {
-      const win = document.getElementById(windowId);
-      if (!win) return;
-
-      if (win.classList.contains('minimized') || win.style.display === 'none') {
-        win.classList.remove('minimized');
-        win.style.display = 'flex';
-        this.bringToFront(win);
-      } else if (chip.classList.contains('active')) {
-        this.minimizeWindow(windowId);
+  } else if ('+-*/'.indexOf(key) >= 0) {
+    d.expr = d.expr + d.current + key;
+    d.current = '0';
+  } else {
+    if (d.current === '0' && key !== '.') {
+      d.current = key;
+    } else {
+      if (key === '.' && d.current.indexOf('.') >= 0) {
+        
       } else {
-        this.bringToFront(win);
+        d.current += key;
       }
-    }
-
-    /**
-     * @param {string} windowId
-     */
-    maximizeWindow(windowId) {
-      const win = document.getElementById(windowId);
-      if (!win) return;
-
-      if (win.dataset.maximized === 'true') {
-        win.style.width = win.dataset.prevWidth;
-        win.style.height = win.dataset.prevHeight;
-        win.style.left = win.dataset.prevLeft;
-        win.style.top = win.dataset.prevTop;
-        win.dataset.maximized = 'false';
-      } else {
-        win.dataset.prevWidth = win.style.width;
-        win.dataset.prevHeight = win.style.height;
-        win.dataset.prevLeft = win.style.left;
-        win.dataset.prevTop = win.style.top;
-
-        win.style.width = '100vw';
-        win.style.height = 'calc(100vh - 48px)';
-        win.style.left = '0px';
-        win.style.top = '0px';
-        win.dataset.maximized = 'true';
-      }
-      this.bringToFront(win);
-    }
-
-    /**
-     * Implements document-level drag listeners to prevent mouse slippage.
-     * @param {HTMLElement} win
-     */
-    setupDragging(win) {
-      const header = win.querySelector('.window-header');
-      let isDragging = false;
-      let startX = 0;
-      let startY = 0;
-      let initX = 0;
-      let initY = 0;
-
-      const onMouseMove = (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        win.style.left = `${initX + dx}px`;
-        win.style.top = `${initY + dy}px`;
-      };
-
-      const onMouseUp = () => {
-        if (isDragging) {
-          isDragging = false;
-          document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup', onMouseUp);
-        }
-      };
-
-      header.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.window-btn')) return;
-        if (win.dataset.maximized === 'true') return;
-
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        initX = win.offsetLeft;
-        initY = win.offsetTop;
-        this.bringToFront(win);
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-      });
     }
   }
 
-  const windowManager = new WindowManager();
+  screen.textContent = d.current;
+}
 
-  // =========================================================================
-  // 6. APPLICATION ROUTER & CONTROLLERS
-  // =========================================================================
+function mountFiles(body, winId) {
+  body.innerHTML = ''
+    + '<div style="margin-bottom:8px;">'
+    + '  <button onclick="refreshFiles(\'' + winId + '\')">Refresh</button>'
+    + '</div>'
+    + '<div class="fm-list" id="' + winId + '-list"></div>';
+  refreshFiles(winId);
+}
 
-  class AppRouter {
-    /**
-     * @param {string} appKey
-     * @param {string} windowId
-     * @param {HTMLElement} container
-     * @param {Function} registerCleanup
-     */
-    static mount(appKey, windowId, container, registerCleanup) {
-      switch (appKey) {
-        case 'notepad':
-          this.mountNotepad(windowId, container);
-          break;
-        case 'terminal':
-          this.mountTerminal(windowId, container, registerCleanup);
-          break;
-        case 'calculator':
-          this.mountCalculator(windowId, container);
-          break;
-        case 'filemanager':
-          this.mountFileManager(windowId, container);
-          break;
-        case 'snake':
-          this.mountSnake(windowId, container, registerCleanup);
-          break;
-        case 'browser':
-          this.mountBrowser(windowId, container);
-          break;
-        case 'settings':
-          this.mountSettings(windowId, container);
-          break;
-        default:
-          container.textContent = 'Application initialized.';
-      }
+function refreshFiles(winId) {
+  let list = document.getElementById(winId + '-list');
+  let files = JSON.parse(localStorage.getItem('doodle_files') || '{}');
+  let names = Object.keys(files);
+
+  if (names.length === 0) {
+    list.innerHTML = '<p style="color:#999;">No files yet. Save something in Notepad!</p>';
+    return;
+  }
+
+  let html = '';
+  for (let i = 0; i < names.length; i++) {
+    let name = names[i];
+    html += ''
+      + '<div class="fm-file">'
+      + '  <span>📄 ' + name + '</span>'
+      + '  <div>'
+      + '    <button onclick="viewFile(\'' + name + '\')">View</button>'
+      + '    <button onclick="deleteFile(\'' + name + '\', \'' + winId + '\')">Delete</button>'
+      + '  </div>'
+      + '</div>';
+  }
+  list.innerHTML = html;
+}
+
+function viewFile(name) {
+  let files = JSON.parse(localStorage.getItem('doodle_files') || '{}');
+  alert('File: ' + name + '\n\n' + (files[name] || '(empty)'));
+}
+
+function deleteFile(name, winId) {
+  if (confirm('Delete "' + name + '"?')) {
+    let files = JSON.parse(localStorage.getItem('doodle_files') || '{}');
+    delete files[name];
+    localStorage.setItem('doodle_files', JSON.stringify(files));
+    refreshFiles(winId);
+  }
+}
+
+function mountSnake(body, winId) {
+  body.innerHTML = ''
+    + '<div class="snake-score">Score: <span id="' + winId + '-score">0</span></div>'
+    + '<canvas class="snake-canvas" id="' + winId + '-canvas" width="340" height="340"></canvas>'
+    + '<div class="snake-controls"><button onclick="startSnake(\'' + winId + '\')">Start / Restart</button></div>';
+
+  startSnake(winId);
+}
+
+let snakeIntervals = {};
+
+function startSnake(winId) {
+  if (snakeIntervals[winId]) clearInterval(snakeIntervals[winId]);
+
+  let canvas = document.getElementById(winId + '-canvas');
+  let ctx = canvas.getContext('2d');
+  let scoreEl = document.getElementById(winId + '-score');
+
+  let gs = 17;
+  let tc = canvas.width / gs;
+
+  let snake = [{x: 10, y: 10}];
+  let food = {x: 5, y: 5};
+  let vx = 1, vy = 0;
+  let score = 0;
+  let dead = false;
+
+  function draw() {
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'green';
+    ctx.fillRect(food.x * gs + 2, food.y * gs + 2, gs - 4, gs - 4);
+
+    for (let i = 0; i < snake.length; i++) {
+      ctx.fillStyle = i === 0 ? '#333' : '#666';
+      ctx.fillRect(snake[i].x * gs + 1, snake[i].y * gs + 1, gs - 2, gs - 2);
     }
 
-    // --- APP: NOTEPAD ---
-    static mountNotepad(windowId, container) {
-      container.innerHTML = `
-        <div class="notepad-layout">
-          <div class="notepad-toolbar">
-            <button type="button" class="tool-btn" id="${windowId}-new">New</button>
-            <button type="button" class="tool-btn" id="${windowId}-save">Save</button>
-            <select class="tool-select" id="${windowId}-files" aria-label="Open File">
-              <option value="">Open...</option>
-            </select>
-            <span class="tool-status" id="${windowId}-status" aria-live="polite">Ready</span>
-          </div>
-          <textarea id="${windowId}-text" class="notepad-textarea" placeholder="Type your notes here..."></textarea>
-        </div>
-      `;
+    if (dead) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
+      ctx.font = '14px Arial';
+      ctx.fillText('Score: ' + score, canvas.width / 2, canvas.height / 2 + 20);
+    }
+  }
 
-      const textarea = container.querySelector(`#${windowId}-text`);
-      const status = container.querySelector(`#${windowId}-status`);
-      const fileSelect = container.querySelector(`#${windowId}-files`);
-      const btnNew = container.querySelector(`#${windowId}-new`);
-      const btnSave = container.querySelector(`#${windowId}-save`);
+  function step() {
+    if (dead) return;
+    let head = {x: snake[0].x + vx, y: snake[0].y + vy};
 
-      const refreshFiles = () => {
-        fileSelect.innerHTML = '<option value="">Open...</option>';
-        disk.list().forEach((f) => {
-          const opt = document.createElement('option');
-          opt.value = f;
-          opt.textContent = f;
-          fileSelect.appendChild(opt);
-        });
-      };
-
-      btnNew.addEventListener('click', () => {
-        sound.playClick();
-        textarea.value = '';
-        status.textContent = 'New file';
-      });
-
-      btnSave.addEventListener('click', () => {
-        sound.playSuccess();
-        const filename = prompt('Enter document name:', 'note.txt');
-        if (!filename) return;
-
-        disk.write(filename.trim(), textarea.value);
-        refreshFiles();
-        status.textContent = `Saved ${filename.trim()}`;
-      });
-
-      fileSelect.addEventListener('change', (e) => {
-        const file = e.target.value;
-        if (!file) return;
-        sound.playClick();
-        textarea.value = disk.read(file) || '';
-        status.textContent = `Opened ${file}`;
-      });
-
-      refreshFiles();
+    if (head.x < 0 || head.x >= tc || head.y < 0 || head.y >= tc) {
+      dead = true;
+      clearInterval(snakeIntervals[winId]);
+      draw();
+      return;
     }
 
-    // --- APP: TERMINAL ---
-    static mountTerminal(windowId, container, registerCleanup) {
-      container.innerHTML = `
-        <div class="terminal-container" id="term-${windowId}">
-          <div>Doodle OS Shell v1.0.0 (x86_64-web)</div>
-          <div>Type 'help' for available commands.</div>
-          <div class="terminal-line">
-            <span class="terminal-prompt">user@doodle:~$</span>
-            <input type="text" class="terminal-input" autofocus aria-label="Terminal Input" />
-          </div>
-        </div>
-      `;
-
-      const term = container.querySelector(`#term-${windowId}`);
-
-      const processCommand = (inputEl, rawCmd) => {
-        inputEl.disabled = true;
-        const cmd = rawCmd.trim();
-        const lower = cmd.toLowerCase();
-        let output = '';
-
-        if (lower === 'help') {
-          output = 'Commands: help, date, clear, echo [text], whoami, reboot, ls, cat [file]';
-        } else if (lower === 'date') {
-          output = new Date().toUTCString();
-        } else if (lower === 'clear') {
-          term.innerHTML = '';
-          createPrompt();
-          return;
-        } else if (lower === 'whoami') {
-          output = `${AUTH_CONFIG.USER_NAME} (${AUTH_CONFIG.USER_ROLE})`;
-        } else if (lower === 'reboot') {
-          output = 'Rebooting system...';
-          setTimeout(() => location.reload(), 600);
-        } else if (lower === 'ls') {
-          const files = disk.list();
-          output = files.length > 0 ? files.join('   ') : 'No files found.';
-        } else if (lower.startsWith('cat ')) {
-          const file = cmd.slice(4).trim();
-          const content = disk.read(file);
-          output = content !== null ? content : `cat: ${file}: No such file`;
-        } else if (lower.startsWith('echo ')) {
-          output = cmd.slice(5);
-        } else if (cmd === '') {
-          output = '';
-        } else {
-          output = `Command not recognized: "${cmd}". Type 'help' for assistance.`;
-        }
-
-        if (output) {
-          const outLine = document.createElement('div');
-          outLine.textContent = output;
-          term.appendChild(outLine);
-        }
-
-        createPrompt();
-      };
-
-      const createPrompt = () => {
-        const line = document.createElement('div');
-        line.className = 'terminal-line';
-        line.innerHTML = `
-          <span class="terminal-prompt">user@doodle:~$</span>
-          <input type="text" class="terminal-input" />
-        `;
-        term.appendChild(line);
-        term.scrollTop = term.scrollHeight;
-
-        const nextInput = line.querySelector('.terminal-input');
-        nextInput.focus();
-        nextInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') processCommand(nextInput, nextInput.value);
-        });
-      };
-
-      const firstInput = term.querySelector('.terminal-input');
-      if (firstInput) {
-        firstInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') processCommand(firstInput, firstInput.value);
-        });
-      }
-
-      registerCleanup(() => {
-        term.innerHTML = '';
-      });
-    }
-
-    // --- APP: CALCULATOR ---
-    static mountCalculator(windowId, container) {
-      container.innerHTML = `
-        <div class="calc-layout">
-          <div class="calc-screen" id="${windowId}-calc-screen" aria-live="polite">0</div>
-          <div class="calc-grid">
-            <button type="button" class="calc-key key-clear">C</button>
-            <button type="button" class="calc-key key-op">÷</button>
-            <button type="button" class="calc-key key-op">×</button>
-            <button type="button" class="calc-key">⌫</button>
-            <button type="button" class="calc-key">7</button>
-            <button type="button" class="calc-key">8</button>
-            <button type="button" class="calc-key">9</button>
-            <button type="button" class="calc-key key-op">-</button>
-            <button type="button" class="calc-key">4</button>
-            <button type="button" class="calc-key">5</button>
-            <button type="button" class="calc-key">6</button>
-            <button type="button" class="calc-key key-op">+</button>
-            <button type="button" class="calc-key">1</button>
-            <button type="button" class="calc-key">2</button>
-            <button type="button" class="calc-key">3</button>
-            <button type="button" class="calc-key key-eq">=</button>
-            <button type="button" class="calc-key key-zero">0</button>
-            <button type="button" class="calc-key">.</button>
-          </div>
-        </div>
-      `;
-
-      const screen = container.querySelector(`#${windowId}-calc-screen`);
-      let currentVal = '0';
-      let storedOperand = null;
-      let activeOperator = null;
-      let resetOnNextInput = false;
-
-      const updateDisplay = () => {
-        screen.textContent = currentVal;
-      };
-
-      container.querySelector('.calc-grid').addEventListener('click', (e) => {
-        const btn = e.target.closest('.calc-key');
-        if (!btn) return;
-        sound.playClick();
-
-        const key = btn.textContent.trim();
-
-        if (key === 'C') {
-          currentVal = '0';
-          storedOperand = null;
-          activeOperator = null;
-          resetOnNextInput = false;
-        } else if (key === '⌫') {
-          currentVal = currentVal.length > 1 ? currentVal.slice(0, -1) : '0';
-        } else if (['+', '-', '×', '÷'].includes(key)) {
-          storedOperand = parseFloat(currentVal);
-          activeOperator = key;
-          resetOnNextInput = true;
-        } else if (key === '=') {
-          if (activeOperator && storedOperand !== null) {
-            const currentNum = parseFloat(currentVal);
-            let res = 0;
-
-            if (activeOperator === '+') res = storedOperand + currentNum;
-            if (activeOperator === '-') res = storedOperand - currentNum;
-            if (activeOperator === '×') res = storedOperand * currentNum;
-            if (activeOperator === '÷') res = currentNum === 0 ? 'Error' : storedOperand / currentNum;
-
-            currentVal = String(res);
-            activeOperator = null;
-            storedOperand = null;
-            resetOnNextInput = true;
-          }
-        } else {
-          if (currentVal === '0' || resetOnNextInput) {
-            currentVal = key === '.' ? '0.' : key;
-            resetOnNextInput = false;
-          } else {
-            if (key === '.' && currentVal.includes('.')) return;
-            currentVal += key;
-          }
-        }
-        updateDisplay();
-      });
-    }
-
-    // --- APP: FILE MANAGER ---
-    static mountFileManager(windowId, container) {
-      container.innerHTML = `
-        <div class="fm-layout">
-          <div class="fm-toolbar">
-            <span class="fm-count" id="${windowId}-fm-count">0 items</span>
-            <button type="button" class="tool-btn" id="${windowId}-fm-refresh">Refresh</button>
-          </div>
-          <div class="fm-grid" id="${windowId}-fm-grid"></div>
-        </div>
-      `;
-
-      const grid = container.querySelector(`#${windowId}-fm-grid`);
-      const countEl = container.querySelector(`#${windowId}-fm-count`);
-      const btnRefresh = container.querySelector(`#${windowId}-fm-refresh`);
-
-      const renderGrid = () => {
-        const files = disk.list();
-        countEl.textContent = `${files.length} document${files.length === 1 ? '' : 's'}`;
-
-        if (files.length === 0) {
-          grid.innerHTML = `
-            <div style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:32px;">
-              No documents created yet.<br>Save files in Notepad to populate.
-            </div>
-          `;
-          return;
-        }
-
-        grid.innerHTML = '';
-        files.forEach((name) => {
-          const card = document.createElement('div');
-          card.className = 'fm-card';
-          card.innerHTML = `
-            <svg class="fm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            <div class="fm-name">${name}</div>
-            <div class="fm-actions">
-              <button type="button" class="fm-btn btn-view" title="View">View</button>
-              <button type="button" class="fm-btn btn-delete" title="Delete">Delete</button>
-            </div>
-          `;
-
-          card.querySelector('.btn-view').addEventListener('click', () => {
-            sound.playClick();
-            const text = disk.read(name) || '';
-            alert(`Document: ${name}\n\n${text}`);
-          });
-
-          card.querySelector('.btn-delete').addEventListener('click', () => {
-            if (confirm(`Delete "${name}"?`)) {
-              disk.remove(name);
-              sound.playClose();
-              renderGrid();
-            }
-          });
-
-          grid.appendChild(card);
-        });
-      };
-
-      btnRefresh.addEventListener('click', () => {
-        sound.playClick();
-        renderGrid();
-      });
-
-      renderGrid();
-    }
-
-    // --- APP: SNAKE GAME ---
-    static mountSnake(windowId, container, registerCleanup) {
-      container.innerHTML = `
-        <div class="snake-layout">
-          <div class="snake-header">Score: <span id="${windowId}-score">0</span></div>
-          <canvas id="${windowId}-canvas" class="snake-canvas" width="340" height="340" tabindex="0"></canvas>
-          <button type="button" class="btn btn-primary" id="${windowId}-restart">Start / Restart Game</button>
-        </div>
-      `;
-
-      const canvas = container.querySelector(`#${windowId}-canvas`);
-      const scoreEl = container.querySelector(`#${windowId}-score`);
-      const btnRestart = container.querySelector(`#${windowId}-restart`);
-      const ctx = canvas.getContext('2d');
-
-      const GRID_SIZE = 17;
-      const TILE_COUNT = canvas.width / GRID_SIZE;
-
-      let snake = [{ x: 10, y: 10 }];
-      let food = { x: 5, y: 5 };
-      let vx = 1;
-      let vy = 0;
-      let score = 0;
-      let isDead = false;
-      let gameInterval = null;
-
-      const draw = () => {
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw Food
-        ctx.fillStyle = '#14b8a6';
-        ctx.beginPath();
-        ctx.arc(
-          food.x * GRID_SIZE + GRID_SIZE / 2,
-          food.y * GRID_SIZE + GRID_SIZE / 2,
-          GRID_SIZE / 2 - 2,
-          0,
-          Math.PI * 2
-        );
-        ctx.fill();
-
-        // Draw Snake
-        snake.forEach((seg, idx) => {
-          ctx.fillStyle = idx === 0 ? '#2563eb' : '#3b82f6';
-          ctx.fillRect(seg.x * GRID_SIZE + 1, seg.y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
-        });
-
-        if (isDead) {
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = '#ffffff';
-          ctx.font = '600 20px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 8);
-          ctx.font = '400 14px Inter, sans-serif';
-          ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 18);
-        }
-      };
-
-      const step = () => {
-        if (isDead) return;
-
-        const head = { x: snake[0].x + vx, y: snake[0].y + vy };
-
-        // Wall collisions
-        if (head.x < 0 || head.x >= TILE_COUNT || head.y < 0 || head.y >= TILE_COUNT) {
-          endGame();
-          return;
-        }
-
-        // Self collisions
-        for (let i = 0; i < snake.length; i += 1) {
-          if (snake[i].x === head.x && snake[i].y === head.y) {
-            endGame();
-            return;
-          }
-        }
-
-        snake.unshift(head);
-
-        // Food consumption
-        if (head.x === food.x && head.y === food.y) {
-          score += 10;
-          scoreEl.textContent = String(score);
-          sound.playSuccess();
-          food = {
-            x: Math.floor(Math.random() * TILE_COUNT),
-            y: Math.floor(Math.random() * TILE_COUNT)
-          };
-        } else {
-          snake.pop();
-        }
-
+    for (let i = 0; i < snake.length; i++) {
+      if (snake[i].x === head.x && snake[i].y === head.y) {
+        dead = true;
+        clearInterval(snakeIntervals[winId]);
         draw();
-      };
-
-      const endGame = () => {
-        isDead = true;
-        if (gameInterval) clearInterval(gameInterval);
-        sound.playError();
-        draw();
-      };
-
-      const onKeyDown = (e) => {
-        if (isDead) return;
-        if (['ArrowUp', 'KeyW'].includes(e.code) && vy === 0) {
-          vx = 0; vy = -1; e.preventDefault();
-        } else if (['ArrowDown', 'KeyS'].includes(e.code) && vy === 0) {
-          vx = 0; vy = 1; e.preventDefault();
-        } else if (['ArrowLeft', 'KeyA'].includes(e.code) && vx === 0) {
-          vx = -1; vy = 0; e.preventDefault();
-        } else if (['ArrowRight', 'KeyD'].includes(e.code) && vx === 0) {
-          vx = 1; vy = 0; e.preventDefault();
-        }
-      };
-
-      const start = () => {
-        if (gameInterval) clearInterval(gameInterval);
-        snake = [{ x: 10, y: 10 }];
-        food = { x: 5, y: 5 };
-        vx = 1;
-        vy = 0;
-        score = 0;
-        isDead = false;
-        scoreEl.textContent = '0';
-        canvas.focus();
-        draw();
-        gameInterval = setInterval(step, 110);
-      };
-
-      canvas.addEventListener('keydown', onKeyDown);
-      btnRestart.addEventListener('click', () => {
-        sound.playClick();
-        start();
-      });
-
-      start();
-
-      // Clean up event listeners & intervals on window close to prevent leaks
-      registerCleanup(() => {
-        if (gameInterval) clearInterval(gameInterval);
-        canvas.removeEventListener('keydown', onKeyDown);
-      });
+        return;
+      }
     }
 
-    // --- APP: BROWSER ---
-    static mountBrowser(windowId, container) {
-      container.innerHTML = `
-        <div class="browser-layout">
-          <div class="browser-bar">
-            <button type="button" class="tool-btn" id="${windowId}-home">Home</button>
-            <input type="text" class="browser-url-input" id="${windowId}-url" placeholder="Search Google or enter a website address..." />
-            <button type="button" class="btn btn-primary" id="${windowId}-go">Go</button>
-          </div>
-          <div class="browser-view">
-            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="2" y1="12" x2="22" y2="12" />
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-            </svg>
-            <span>Type a URL above to browse the web</span>
-          </div>
-        </div>
-      `;
+    snake.unshift(head);
 
-      const input = container.querySelector(`#${windowId}-url`);
-      const btnGo = container.querySelector(`#${windowId}-go`);
-      const btnHome = container.querySelector(`#${windowId}-home`);
-
-      const navigate = () => {
-        const query = input.value.trim();
-        if (!query) return;
-
-        let target = query;
-        if (!/^https?:\/\//i.test(query)) {
-          if (query.includes('.') && !query.includes(' ')) {
-            target = `https://${query}`;
-          } else {
-            target = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-          }
-        }
-        window.open(target, '_blank', 'noopener,noreferrer');
+    if (head.x === food.x && head.y === food.y) {
+      score += 10;
+      scoreEl.textContent = score;
+      food = {
+        x: Math.floor(Math.random() * tc),
+        y: Math.floor(Math.random() * tc)
       };
-
-      btnGo.addEventListener('click', navigate);
-      btnHome.addEventListener('click', () => {
-        window.open('https://google.com', '_blank', 'noopener,noreferrer');
-      });
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') navigate();
-      });
+    } else {
+      snake.pop();
     }
 
-    // --- APP: SETTINGS ---
-    static mountSettings(windowId, container) {
-      container.innerHTML = `
-        <div class="settings-layout">
-          <div>
-            <div class="settings-section-title">Preferences</div>
-            <div class="settings-row" style="margin-top: 8px;">
-              <span class="settings-label">System Sound Effects</span>
-              <input type="checkbox" class="settings-toggle" id="${windowId}-sound" ${sound.enabled ? 'checked' : ''} />
-            </div>
-          </div>
-
-          <div>
-            <div class="settings-section-title">Appearance</div>
-            <div class="settings-row" style="margin-top: 8px;">
-              <span class="settings-label">Color Theme</span>
-              <select class="tool-select" id="${windowId}-theme">
-                <option value="light">Mixed Light (Default)</option>
-                <option value="dark">Dark Theme</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <div class="settings-section-title">Desktop Pattern</div>
-            <div class="wp-swatches">
-              <button type="button" class="wp-swatch" data-wp="dots">Dots</button>
-              <button type="button" class="wp-swatch" data-wp="grid">Grid</button>
-              <button type="button" class="wp-swatch" data-wp="lines">Lines</button>
-              <button type="button" class="wp-swatch" data-wp="crosses">Crosses</button>
-              <button type="button" class="wp-swatch" data-wp="clean">Solid</button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      const soundCheck = container.querySelector(`#${windowId}-sound`);
-      const themeSelect = container.querySelector(`#${windowId}-theme`);
-
-      themeSelect.value = StorageManager.getLocal(STORAGE_KEYS.THEME, 'light');
-
-      soundCheck.addEventListener('change', (e) => {
-        sound.setEnabled(e.target.checked);
-      });
-
-      themeSelect.addEventListener('change', (e) => {
-        DesktopEnvironment.applyTheme(e.target.value);
-      });
-
-      container.querySelectorAll('.wp-swatch').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          sound.playClick();
-          DesktopEnvironment.applyWallpaper(btn.dataset.wp);
-        });
-      });
-    }
+    draw();
   }
 
-  // =========================================================================
-  // 7. CALENDAR FLYOUT
-  // =========================================================================
-
-  class CalendarFlyout {
-    constructor() {
-      this.popup = document.getElementById('calendar-popup');
-      this.toggleBtn = document.getElementById('calendar-btn');
-      this.titleEl = document.getElementById('cal-month-year');
-      this.gridEl = document.getElementById('cal-days');
-
-      this.initEvents();
-    }
-
-    initEvents() {
-      this.toggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        sound.playClick();
-        const isHidden = this.popup.classList.toggle('hidden');
-        this.toggleBtn.setAttribute('aria-expanded', String(!isHidden));
-        if (!isHidden) this.render();
-      });
-
-      document.addEventListener('click', (e) => {
-        if (!this.popup.contains(e.target) && e.target !== this.toggleBtn) {
-          this.popup.classList.add('hidden');
-          this.toggleBtn.setAttribute('aria-expanded', 'false');
-        }
-      });
-    }
-
-    render() {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth();
-      const months = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-      ];
-
-      this.titleEl.textContent = `${months[month]} ${year}`;
-
-      const firstDay = new Date(year, month, 1).getDay();
-      const totalDays = new Date(year, month + 1, 0).getDate();
-      const today = now.getDate();
-
-      const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-      let html = daysOfWeek.map((d) => `<div class="cal-day-label">${d}</div>`).join('');
-
-      for (let i = 0; i < firstDay; i += 1) {
-        html += '<div class="cal-cell empty"></div>';
-      }
-
-      for (let day = 1; day <= totalDays; day += 1) {
-        const isToday = day === today;
-        html += `<div class="cal-cell ${isToday ? 'today' : ''}">${day}</div>`;
-      }
-
-      this.gridEl.innerHTML = html;
-    }
+  function onKey(e) {
+    if (dead) return;
+    if (e.key === 'ArrowUp' && vy === 0) { vx = 0; vy = -1; e.preventDefault(); }
+    if (e.key === 'ArrowDown' && vy === 0) { vx = 0; vy = 1; e.preventDefault(); }
+    if (e.key === 'ArrowLeft' && vx === 0) { vx = -1; vy = 0; e.preventDefault(); }
+    if (e.key === 'ArrowRight' && vx === 0) { vx = 1; vy = 0; e.preventDefault(); }
   }
 
-  // =========================================================================
-  // 8. DESKTOP ENVIRONMENT CONTROLLER
-  // =========================================================================
+  canvas.setAttribute('tabindex', '0');
+  canvas.focus();
+  canvas.addEventListener('keydown', onKey);
 
-  class DesktopEnvironment {
-    static initialize() {
-      this.desktop = document.getElementById('desktop');
-      this.startMenu = document.getElementById('start-menu');
-      this.startBtn = document.getElementById('start-btn');
-      this.shutdownBtn = document.getElementById('shutdown-btn');
-      this.clockEl = document.getElementById('clock');
+  draw();
+  snakeIntervals[winId] = setInterval(step, 120);
+}
 
-      this.loadPreferences();
-      this.initAuth();
-      this.initShortcuts();
-      this.initStartMenu();
-      this.startClock();
-      new CalendarFlyout();
-    }
+function mountBrowser(body, winId) {
+  body.innerHTML = ''
+    + '<div class="browser-bar">'
+    + '  <input type="text" id="' + winId + '-url" placeholder="Enter URL or search...">'
+    + '  <button onclick="browse(\'' + winId + '\')">Go</button>'
+    + '</div>'
+    + '<div class="browser-msg">Enter a website above to open it in a new tab</div>';
 
-    static loadPreferences() {
-      const savedTheme = StorageManager.getLocal(STORAGE_KEYS.THEME, 'light');
-      this.applyTheme(savedTheme);
-
-      const savedWallpaper = StorageManager.getLocal(STORAGE_KEYS.WALLPAPER, 'dots');
-      this.applyWallpaper(savedWallpaper);
-    }
-
-    static applyTheme(theme) {
-      this.desktop.setAttribute('data-theme', theme);
-      document.body.setAttribute('data-theme', theme);
-      StorageManager.setLocal(STORAGE_KEYS.THEME, theme);
-    }
-
-    static applyWallpaper(pattern) {
-      this.desktop.setAttribute('data-wallpaper', pattern || 'dots');
-      StorageManager.setLocal(STORAGE_KEYS.WALLPAPER, pattern || 'dots');
-    }
-
-    static closeStartMenu() {
-      if (this.startMenu) {
-        this.startMenu.classList.add('hidden');
-        this.startBtn.setAttribute('aria-expanded', 'false');
-      }
-    }
-
-    static initAuth() {
-      const loginOverlay = document.getElementById('login-screen');
-      const welcomeOverlay = document.getElementById('welcome-screen');
-      const loginForm = document.getElementById('login-form');
-      const passwordInput = document.getElementById('login-password');
-      const enterBtn = document.getElementById('enter-btn');
-
-      // Check for active session
-      if (StorageManager.getSession(STORAGE_KEYS.SESSION) === 'true') {
-        loginOverlay.style.display = 'none';
-        welcomeOverlay.classList.remove('hidden');
-      }
-
-      loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        if (passwordInput.value === AUTH_CONFIG.PASSWORD) {
-          sound.playOpen();
-          StorageManager.setSession(STORAGE_KEYS.SESSION, 'true');
-          loginOverlay.classList.add('fade-out');
-
-          setTimeout(() => {
-            loginOverlay.style.display = 'none';
-            welcomeOverlay.classList.remove('hidden');
-          }, 400);
-        } else {
-          sound.playError();
-          passwordInput.style.borderColor = 'var(--accent-danger)';
-          passwordInput.value = '';
-          passwordInput.placeholder = 'Invalid password';
-
-          setTimeout(() => {
-            passwordInput.style.borderColor = '';
-            passwordInput.placeholder = 'Enter password';
-          }, 1200);
-        }
-      });
-
-      enterBtn.addEventListener('click', () => {
-        sound.playOpen();
-        welcomeOverlay.classList.add('fade-out');
-
-        setTimeout(() => {
-          welcomeOverlay.style.display = 'none';
-          this.desktop.classList.remove('hidden');
-        }, 400);
-      });
-    }
-
-    static initShortcuts() {
-      const grid = document.querySelector('.desktop-grid');
-      if (!grid) return;
-
-      grid.addEventListener('click', (e) => {
-        const item = e.target.closest('.desktop-shortcut');
-        if (!item) return;
-
-        sound.playClick();
-        grid.querySelectorAll('.desktop-shortcut').forEach((el) => el.classList.remove('selected'));
-        item.classList.add('selected');
-      });
-
-      grid.addEventListener('dblclick', (e) => {
-        const item = e.target.closest('.desktop-shortcut');
-        if (!item) return;
-        windowManager.openWindow(item.dataset.app);
-      });
-
-      grid.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          const item = e.target.closest('.desktop-shortcut');
-          if (item) windowManager.openWindow(item.dataset.app);
-        }
-      });
-    }
-
-    static initStartMenu() {
-      this.startBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        sound.playClick();
-        const isHidden = this.startMenu.classList.toggle('hidden');
-        this.startBtn.setAttribute('aria-expanded', String(!isHidden));
-      });
-
-      document.addEventListener('click', (e) => {
-        if (!this.startMenu.contains(e.target) && e.target !== this.startBtn) {
-          this.closeStartMenu();
-        }
-      });
-
-      this.startMenu.querySelectorAll('.start-menu-item[data-app]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          windowManager.openWindow(btn.dataset.app);
-        });
-      });
-
-      this.shutdownBtn.addEventListener('click', () => {
-        sound.playClose();
-        StorageManager.removeSession(STORAGE_KEYS.SESSION);
-        document.body.innerHTML = `
-          <div style="height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:#0f172a;color:#f8fafc;">
-            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-              <line x1="12" y1="2" x2="12" y2="12" />
-            </svg>
-            <h2 style="font-weight:600;font-size:1.25rem;">Doodle OS Shut Down</h2>
-            <p style="color:#94a3b8;font-size:0.875rem;">You can safely close this browser tab.</p>
-          </div>
-        `;
-      });
-    }
-
-    static startClock() {
-      const tick = () => {
-        const now = new Date();
-        this.clockEl.textContent = now.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        });
-      };
-      setInterval(tick, 1000);
-      tick();
-    }
-  }
-
-  // =========================================================================
-  // 9. DOM INITIALIZATION
-  // =========================================================================
-  document.addEventListener('DOMContentLoaded', () => {
-    DesktopEnvironment.initialize();
+  document.getElementById(winId + '-url').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') browse(winId);
   });
-})();
+}
+
+function browse(winId) {
+  let val = document.getElementById(winId + '-url').value.trim();
+  if (!val) return;
+  let url = val;
+  if (url.indexOf('http') !== 0) {
+    if (url.indexOf('.') > 0 && url.indexOf(' ') < 0) {
+      url = 'https://' + url;
+    } else {
+      url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
+    }
+  }
+  window.open(url, '_blank');
+}
+
+function mountSettings(body, winId) {
+  let currentTheme = localStorage.getItem('doodle_theme') || 'light';
+
+  body.innerHTML = ''
+    + '<div class="settings-row">'
+    + '  <label>Sound Effects</label>'
+    + '  <input type="checkbox" id="' + winId + '-sound" checked>'
+    + '</div>'
+    + '<div class="settings-row">'
+    + '  <label>Theme</label>'
+    + '  <select id="' + winId + '-theme" onchange="changeTheme(this.value)">'
+    + '    <option value="light"' + (currentTheme === 'light' ? ' selected' : '') + '>Light</option>'
+    + '    <option value="dark"' + (currentTheme === 'dark' ? ' selected' : '') + '>Dark</option>'
+    + '  </select>'
+    + '</div>'
+    + '<p style="margin-top:12px;font-size:12px;color:#999;">Wallpaper changes automatically with theme.</p>';
+
+  
+  changeTheme(currentTheme);
+}
+
+function changeTheme(theme) {
+  localStorage.setItem('doodle_theme', theme);
+  document.body.setAttribute('data-theme', theme);
+}
+
+function shutdown() {
+  sessionStorage.removeItem('doodle_logged_in');
+  document.body.innerHTML = ''
+    + '<div style="height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#2c3e50;color:white;">'
+    + '  <div style="font-size:48px;margin-bottom:16px;">⏻</div>'
+    + '  <h2>Doodle OS Shut Down</h2>'
+    + '  <p style="margin-top:8px;color:#aaa;">You can safely close this tab.</p>'
+    + '</div>';
+}
+
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#start-btn') && !e.target.closest('#start-menu')) {
+    document.getElementById('start-menu').classList.add('hidden');
+  }
+  if (!e.target.closest('#calendar-btn') && !e.target.closest('#calendar-popup')) {
+    document.getElementById('calendar-popup').classList.add('hidden');
+  }
+});
