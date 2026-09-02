@@ -1,0 +1,781 @@
+
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f0f0f0;
+  color: #333;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+
+.hidden {
+  display: none !important;
+}
+
+
+.screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8e8e8;
+  z-index: 9999;
+}
+
+.card {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 30px;
+  width: 320px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.login-card .logo {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.card h1 {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.card p {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 16px;
+}
+
+.card input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  background: white;
+  color: #333;
+}
+
+.card button {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+}
+
+.card button:hover {
+  background: #eee;
+}
+
+.hint {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #999;
+}
+
+
+.desktop {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  background: 
+    radial-gradient(ellipse 80% 60% at 20% 30%, rgba(59, 130, 246, 0.15) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 70%, rgba(139, 92, 246, 0.12) 0%, transparent 60%),
+    linear-gradient(160deg, #eff6ff 0%, #e0e7ff 25%, #f5f3ff 60%, #fdf2f8 100%);
+  background-attachment: fixed;
+}
+
+
+.desktop-icons {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.desktop-icon {
+  width: 80px;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.desktop-icon:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255,255,255,0.4);
+}
+
+.desktop-icon .icon {
+  font-size: 28px;
+  color: #2563eb;
+  margin-bottom: 4px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.desktop-icon .label {
+  font-size: 12px;
+  color: #1f2937;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+}
+
+
+#windows-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 42px);
+  pointer-events: none;
+}
+
+.window {
+  position: absolute;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  min-width: 300px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+.window-header {
+  height: 36px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  cursor: grab;
+  border-radius: 5px 5px 0 0;
+}
+
+.window-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+}
+
+
+.window-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.window-controls button {
+  width: 40px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #444;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+}
+
+.window-controls button:hover {
+  background: #e0e0e0;
+}
+
+.window-controls .btn-close:hover {
+  background: #e81123;
+  color: white;
+}
+
+.window-body {
+  flex: 1;
+  padding: 12px;
+  overflow: auto;
+  background: white;
+  color: #333;
+}
+
+
+.taskbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 42px;
+  background: #2c3e50;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  z-index: 1000;
+}
+
+.taskbar-left button,
+.taskbar-right button {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.taskbar-left button:hover,
+.taskbar-right button:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.taskbar-center {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  margin: 0 12px;
+  overflow-x: auto;
+}
+
+.taskbar-app {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.taskbar-app:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.taskbar-app.active {
+  background: rgba(255,255,255,0.25);
+}
+
+.taskbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#clock {
+  font-size: 13px;
+  min-width: 70px;
+  text-align: right;
+}
+
+
+.start-menu {
+  position: fixed;
+  bottom: 42px;
+  left: 10px;
+  width: 220px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 1001;
+  overflow: hidden;
+}
+
+.start-menu-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 1px solid #eee;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.start-menu-item i {
+  width: 18px;
+  text-align: center;
+  color: #4a90d9;
+}
+
+.start-menu-item:hover {
+  background: #f0f0f0;
+}
+
+.start-menu-divider {
+  height: 1px;
+  background: #ccc;
+}
+
+.shutdown {
+  color: #c0392b;
+}
+
+.shutdown i {
+  color: #c0392b;
+}
+
+
+.calendar-popup {
+  position: fixed;
+  bottom: 42px;
+  right: 10px;
+  width: 260px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 1001;
+  padding: 12px;
+}
+
+.cal-header {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 8px;
+  font-size: 15px;
+  color: #333;
+}
+
+.cal-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.cal-cell {
+  width: 14.28%;
+  text-align: center;
+  padding: 6px 0;
+  font-size: 13px;
+  color: #333;
+}
+
+.cal-cell.header {
+  font-weight: bold;
+  color: #666;
+}
+
+.cal-cell.today {
+  background: #4a90d9;
+  color: white;
+  border-radius: 50%;
+}
+
+
+
+
+.notepad-area {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  resize: none;
+  background: white;
+  color: #333;
+}
+
+.notepad-bar {
+  margin-bottom: 8px;
+}
+
+.notepad-bar button,
+.notepad-bar select {
+  padding: 4px 8px;
+  margin-right: 6px;
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+}
+
+
+.terminal-box {
+  background: #1e1e1e;
+  color: #0f0;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  padding: 10px;
+  height: 100%;
+  overflow-y: auto;
+  border-radius: 4px;
+}
+
+.terminal-line {
+  margin-bottom: 4px;
+}
+
+.terminal-input-line {
+  display: flex;
+  gap: 6px;
+}
+
+.terminal-prompt {
+  color: #0f0;
+}
+
+.terminal-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #0f0;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  flex: 1;
+}
+
+
+.calc-screen {
+  background: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 24px;
+  text-align: right;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.calc-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calc-buttons button {
+  width: 23%;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #333;
+}
+
+.calc-buttons button:hover {
+  background: #eee;
+}
+
+.calc-buttons .equals {
+  width: 48%;
+  background: #4a90d9;
+  color: white;
+}
+
+.calc-buttons .equals:hover {
+  background: #357abd;
+}
+
+
+.fm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fm-file {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.fm-file span {
+  color: #333;
+}
+
+.fm-file button {
+  padding: 3px 8px;
+  border: 1px solid #ccc;
+  background: #f0f0f0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 4px;
+  color: #333;
+}
+
+
+.snake-canvas {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #f0f0f0;
+  display: block;
+  margin: 0 auto;
+}
+
+.snake-score {
+  text-align: center;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #333;
+}
+
+.snake-controls {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.snake-controls button {
+  padding: 6px 14px;
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #333;
+}
+
+
+.browser-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.browser-bar input {
+  flex: 1;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  color: #333;
+}
+
+.browser-bar button {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #333;
+}
+
+.browser-msg {
+  text-align: center;
+  color: #999;
+  margin-top: 40px;
+}
+
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.settings-row label {
+  font-size: 14px;
+  color: #333;
+}
+
+.settings-row select,
+.settings-row input {
+  background: white;
+  color: #333;
+  border: 1px solid #ccc;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.wp-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.wp-buttons button {
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+}
+
+
+
+
+body[data-theme="dark"] .desktop {
+  background: 
+    radial-gradient(ellipse 80% 60% at 20% 30%, rgba(37, 99, 235, 0.2) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 70%, rgba(124, 58, 237, 0.15) 0%, transparent 60%),
+    linear-gradient(160deg, #020617 0%, #0f172a 30%, #1e1b4b 60%, #172554 100%);
+}
+
+
+body[data-theme="dark"] .desktop-icon .label {
+  color: #e5e7eb;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+body[data-theme="dark"] .desktop-icon:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.15);
+}
+
+
+body[data-theme="dark"] .window {
+  background: #1e1e2e;
+  border-color: #444;
+}
+body[data-theme="dark"] .window-header {
+  background: #252536;
+  border-color: #444;
+}
+body[data-theme="dark"] .window-title {
+  color: #eee;
+}
+body[data-theme="dark"] .window-body {
+  background: #1e1e2e;
+  color: #ccc;
+}
+
+
+body[data-theme="dark"] .window-controls button {
+  color: #bbb;
+}
+body[data-theme="dark"] .window-controls button:hover {
+  background: #333;
+}
+body[data-theme="dark"] .window-controls .btn-close:hover {
+  background: #e81123;
+  color: white;
+}
+
+
+body[data-theme="dark"] .start-menu {
+  background: #1e1e2e;
+  border-color: #444;
+}
+body[data-theme="dark"] .start-menu-item {
+  color: #eee;
+  border-color: #333;
+}
+body[data-theme="dark"] .start-menu-item:hover {
+  background: #2a2a3c;
+}
+
+
+body[data-theme="dark"] .calendar-popup {
+  background: #1e1e2e;
+  border-color: #444;
+}
+body[data-theme="dark"] .cal-header {
+  color: #eee;
+}
+body[data-theme="dark"] .cal-cell {
+  color: #ccc;
+}
+body[data-theme="dark"] .cal-cell.header {
+  color: #888;
+}
+
+
+body[data-theme="dark"] input,
+body[data-theme="dark"] select,
+body[data-theme="dark"] textarea {
+  background: #2a2a3c;
+  color: #ddd;
+  border-color: #444;
+}
+body[data-theme="dark"] .card {
+  background: #1e1e2e;
+  border-color: #444;
+  color: #eee;
+}
+body[data-theme="dark"] .card p,
+body[data-theme="dark"] .hint {
+  color: #aaa;
+}
+body[data-theme="dark"] .card button,
+body[data-theme="dark"] .notepad-bar button,
+body[data-theme="dark"] .calc-buttons button,
+body[data-theme="dark"] .snake-controls button,
+body[data-theme="dark"] .browser-bar button,
+body[data-theme="dark"] .wp-buttons button,
+body[data-theme="dark"] .fm-file button {
+  background: #2a2a3c;
+  color: #ddd;
+  border-color: #444;
+}
+body[data-theme="dark"] .card button:hover,
+body[data-theme="dark"] .calc-buttons button:hover {
+  background: #333;
+}
+
+
+body[data-theme="dark"] .notepad-area {
+  background: #2a2a3c;
+  color: #ddd;
+  border-color: #444;
+}
+
+
+body[data-theme="dark"] .calc-screen {
+  background: #252536;
+  color: #eee;
+  border-color: #444;
+}
+
+
+body[data-theme="dark"] .fm-file {
+  background: #252536;
+  border-color: #444;
+}
+body[data-theme="dark"] .fm-file span {
+  color: #ddd;
+}
+
+
+body[data-theme="dark"] .settings-row {
+  border-color: #333;
+}
+body[data-theme="dark"] .settings-row label {
+  color: #ddd;
+}
+
+
+body[data-theme="dark"] .browser-msg {
+  color: #666;
+}
