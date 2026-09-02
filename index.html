@@ -1,0 +1,109 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doodle OS</title>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  
+  <div id="login-screen" class="screen">
+    <div class="card login-card">
+      <div class="logo">🎨</div>
+      <h1>Doodle OS</h1>
+      <p>Enter your password to unlock</p>
+      <input type="password" id="login-password" placeholder="Enter password">
+      <button onclick="doLogin()">Unlock</button>
+      <p class="hint">Hint: password is <strong>doodle</strong></p>
+    </div>
+  </div>
+
+  
+  <div id="welcome-screen" class="screen hidden">
+    <div class="card welcome-card">
+      <h1>Welcome to Doodle OS!</h1>
+      <p>This is a simple desktop simulation I built while learning HTML, CSS, and JavaScript.</p>
+      <p>It has apps like Notepad, Terminal, Calculator, Snake, and more.</p>
+      <button onclick="enterDesktop()">Enter Doodle OS</button>
+    </div>
+  </div>
+
+  
+  <div id="desktop" class="desktop hidden">
+
+    
+    <div class="desktop-icons">
+      <div class="desktop-icon" onclick="openApp('notepad')" title="Notepad">
+        <div class="icon"><i class="fa-solid fa-file-lines"></i></div>
+        <div class="label">Notepad</div>
+      </div>
+      <div class="desktop-icon" onclick="openApp('terminal')" title="Terminal">
+        <div class="icon"><i class="fa-solid fa-terminal"></i></div>
+        <div class="label">Terminal</div>
+      </div>
+      <div class="desktop-icon" onclick="openApp('calculator')" title="Calculator">
+        <div class="icon"><i class="fa-solid fa-calculator"></i></div>
+        <div class="label">Calculator</div>
+      </div>
+      <div class="desktop-icon" onclick="openApp('files')" title="Files">
+        <div class="icon"><i class="fa-solid fa-folder-open"></i></div>
+        <div class="label">Files</div>
+      </div>
+      <div class="desktop-icon" onclick="openApp('snake')" title="Snake">
+        <div class="icon"><i class="fa-solid fa-gamepad"></i></div>
+        <div class="label">Snake</div>
+      </div>
+      <div class="desktop-icon" onclick="openApp('browser')" title="Browser">
+        <div class="icon"><i class="fa-solid fa-globe"></i></div>
+        <div class="label">Browser</div>
+      </div>
+      <div class="desktop-icon" onclick="openApp('settings')" title="Settings">
+        <div class="icon"><i class="fa-solid fa-gear"></i></div>
+        <div class="label">Settings</div>
+      </div>
+    </div>
+
+    
+    <div id="windows-container"></div>
+
+    
+    <div id="start-menu" class="start-menu hidden">
+      <div class="start-menu-item" onclick="openApp('notepad')"><i class="fa-solid fa-file-lines"></i> Notepad</div>
+      <div class="start-menu-item" onclick="openApp('terminal')"><i class="fa-solid fa-terminal"></i> Terminal</div>
+      <div class="start-menu-item" onclick="openApp('calculator')"><i class="fa-solid fa-calculator"></i> Calculator</div>
+      <div class="start-menu-item" onclick="openApp('files')"><i class="fa-solid fa-folder-open"></i> Files</div>
+      <div class="start-menu-item" onclick="openApp('snake')"><i class="fa-solid fa-gamepad"></i> Snake</div>
+      <div class="start-menu-item" onclick="openApp('browser')"><i class="fa-solid fa-globe"></i> Browser</div>
+      <div class="start-menu-item" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i> Settings</div>
+      <div class="start-menu-divider"></div>
+      <div class="start-menu-item shutdown" onclick="shutdown()"><i class="fa-solid fa-power-off"></i> Shut Down</div>
+    </div>
+
+    
+    <div id="calendar-popup" class="calendar-popup hidden">
+      <div id="cal-header" class="cal-header"></div>
+      <div id="cal-grid" class="cal-grid"></div>
+    </div>
+
+    
+    <div class="taskbar">
+      <div class="taskbar-left">
+        <button id="start-btn" onclick="toggleStartMenu()">☰ Start</button>
+      </div>
+      <div class="taskbar-center" id="taskbar-apps"></div>
+      <div class="taskbar-right">
+        <button id="calendar-btn" onclick="toggleCalendar()"><i class="fa-regular fa-calendar"></i></button>
+        <span id="clock">12:00 PM</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
