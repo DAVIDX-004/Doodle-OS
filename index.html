@@ -15,15 +15,12 @@
 
 <div id="login-screen" class="screen" style="z-index: 9999;">
   <div class="card login-card">
-    <div class="logo">&#127912;</div> 
+    <div class="logo">&#127912;</div>
     <h1>Doodle OS</h1>
     <p>Enter your password to unlock</p>
     
-    
-    <form action="#" onsubmit="return doLogin();">
-      <input type="password" id="login-password" placeholder="Enter password"><br><br>
-      <input type="submit" value="Unlock" class="btn">
-    </form>
+    <input type="password" id="login-password" placeholder="Enter password"><br><br>
+    <button onclick="doLogin()" class="btn">Unlock</button>
     
     <p class="hint">Hint: password is <b>doodle</b></p>
   </div>
