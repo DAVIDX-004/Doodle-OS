@@ -26,7 +26,6 @@ function doLogin() {
     alert("Wrong password! Try doodle");
     document.getElementById("login-password").value = "";
   }
-  return false; 
 }
 
 function enterDesktop() {
